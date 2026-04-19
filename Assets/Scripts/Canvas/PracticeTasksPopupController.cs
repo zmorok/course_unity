@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -62,6 +63,60 @@ public class PracticeTasksPopupController : MonoBehaviour
     private int commandSequenceProgress;
     private bool cutObservedDuringActiveTask;
     private bool runtimeSubscribed;
+    private bool isPracticeModeActive;
+    private bool hasPracticeLayoutSnapshot;
+    private RectTransform buttonContainerRect;
+    private RectTransform controlPanelRect;
+    private RectTransformState buttonContainerState;
+    private VerticalLayoutGroup buttonContainerLayout;
+    private VerticalLayoutGroupState buttonContainerLayoutState;
+    private ContentSizeFitter buttonContainerSizeFitter;
+    private ContentSizeFitterState buttonContainerSizeFitterState;
+    private LayoutElement practiceLayoutElement;
+    private LayoutElementState practiceLayoutState;
+    private float normalDropdownButtonHeight;
+    private readonly Dictionary<GameObject, bool> practiceModeActiveStates = new();
+
+    private struct RectTransformState
+    {
+        public Vector2 AnchorMin;
+        public Vector2 AnchorMax;
+        public Vector2 Pivot;
+        public Vector2 SizeDelta;
+        public Vector2 AnchoredPosition;
+        public Vector2 OffsetMin;
+        public Vector2 OffsetMax;
+    }
+
+    private struct VerticalLayoutGroupState
+    {
+        public RectOffset Padding;
+        public float Spacing;
+        public TextAnchor ChildAlignment;
+        public bool ChildControlWidth;
+        public bool ChildControlHeight;
+        public bool ChildForceExpandWidth;
+        public bool ChildForceExpandHeight;
+    }
+
+    private struct ContentSizeFitterState
+    {
+        public bool Enabled;
+        public ContentSizeFitter.FitMode HorizontalFit;
+        public ContentSizeFitter.FitMode VerticalFit;
+    }
+
+    private struct LayoutElementState
+    {
+        public bool IgnoreLayout;
+        public float MinWidth;
+        public float MinHeight;
+        public float PreferredWidth;
+        public float PreferredHeight;
+        public float FlexibleWidth;
+        public float FlexibleHeight;
+        public int LayoutPriority;
+    }
 
     private void OnEnable()
     {
@@ -103,6 +158,20 @@ public class PracticeTasksPopupController : MonoBehaviour
 
     private void OnDisable()
     {
+        if (isPracticeModeActive)
+        {
+            if (CanRestorePracticeModeFromOnDisable())
+            {
+                RestorePracticeLayout();
+                RestorePracticeModeVisibility();
+                isPracticeModeActive = false;
+            }
+            else
+            {
+                ClearPracticeModeState();
+            }
+        }
+
         if (practiceButton != null)
             practiceButton.onClick.RemoveListener(ToggleWindow);
 
@@ -161,14 +230,13 @@ public class PracticeTasksPopupController : MonoBehaviour
 
     public void ToggleWindow()
     {
-        EnsureDropdown();
-
-        if (dropdownRect == null)
+        if (isPracticeModeActive)
+        {
+            ExitPracticeMode();
             return;
+        }
 
-        dropdownRect.gameObject.SetActive(!dropdownRect.gameObject.activeSelf);
-        RefreshDropdownPosition();
-        RefreshLayout();
+        EnterPracticeMode();
     }
 
     public void ShowWindow()
@@ -190,6 +258,381 @@ public class PracticeTasksPopupController : MonoBehaviour
 
         dropdownRect.gameObject.SetActive(false);
         RefreshLayout();
+    }
+
+    private void EnterPracticeMode()
+    {
+        EnsureDropdown();
+
+        if (dropdownRect == null)
+            return;
+
+        ResetPracticeToInitialState();
+        isPracticeModeActive = true;
+
+        ApplyPracticeLayout();
+        ApplyPracticeModeVisibility();
+        ShowWindow();
+    }
+
+    private void ExitPracticeMode()
+    {
+        isPracticeModeActive = false;
+
+        ResetPracticeToInitialState();
+        RestorePracticeModeVisibility();
+        RestorePracticeLayout();
+        HideWindow();
+    }
+
+    private void ApplyPracticeModeVisibility()
+    {
+        ResolvePracticeModeLayoutReferences();
+        practiceModeActiveStates.Clear();
+
+        Canvas canvas = GetComponentInParent<Canvas>();
+        Transform canvasTransform = canvas != null ? canvas.transform : null;
+        Transform bottomTransform = canvasTransform != null ? canvasTransform.Find("bottom") : null;
+
+        if (canvasTransform != null)
+        {
+            for (int i = 0; i < canvasTransform.childCount; i++)
+            {
+                Transform child = canvasTransform.GetChild(i);
+                bool shouldRemainVisible = child == bottomTransform || child == controlPanelRect;
+                SetCachedActive(child.gameObject, shouldRemainVisible);
+            }
+        }
+
+        if (controlPanelRect != null)
+        {
+            for (int i = 0; i < controlPanelRect.childCount; i++)
+            {
+                Transform child = controlPanelRect.GetChild(i);
+                SetCachedActive(child.gameObject, child == buttonContainerRect);
+            }
+        }
+
+        if (buttonContainerRect != null)
+        {
+            for (int i = 0; i < buttonContainerRect.childCount; i++)
+            {
+                Transform child = buttonContainerRect.GetChild(i);
+                SetCachedActive(child.gameObject, child == practiceRect);
+            }
+        }
+
+        SetCachedActive(gameObject, true);
+
+        if (dropdownRect != null)
+            SetCachedActive(dropdownRect.gameObject, true);
+    }
+
+    private void RestorePracticeModeVisibility()
+    {
+        foreach (KeyValuePair<GameObject, bool> pair in practiceModeActiveStates)
+        {
+            if (pair.Key != null && pair.Key.activeSelf != pair.Value)
+                pair.Key.SetActive(pair.Value);
+        }
+
+        practiceModeActiveStates.Clear();
+    }
+
+    private void SetCachedActive(GameObject target, bool active)
+    {
+        if (target == null)
+            return;
+
+        if (!practiceModeActiveStates.ContainsKey(target))
+            practiceModeActiveStates.Add(target, target.activeSelf);
+
+        if (target.activeSelf != active)
+            target.SetActive(active);
+    }
+
+    private void ApplyPracticeLayout()
+    {
+        ResolvePracticeModeLayoutReferences();
+        CapturePracticeLayoutState();
+
+        if (buttonContainerSizeFitter != null)
+        {
+            buttonContainerSizeFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            buttonContainerSizeFitter.verticalFit = ContentSizeFitter.FitMode.Unconstrained;
+            buttonContainerSizeFitter.enabled = false;
+        }
+
+        if (buttonContainerRect != null)
+        {
+            buttonContainerRect.anchorMin = Vector2.zero;
+            buttonContainerRect.anchorMax = Vector2.one;
+            buttonContainerRect.pivot = new Vector2(0.5f, 0.5f);
+            buttonContainerRect.offsetMin = Vector2.zero;
+            buttonContainerRect.offsetMax = Vector2.zero;
+        }
+
+        if (buttonContainerLayout != null)
+        {
+            RectOffset sourcePadding = buttonContainerLayoutState.Padding;
+            buttonContainerLayout.padding = new RectOffset(
+                sourcePadding != null ? sourcePadding.left : 0,
+                sourcePadding != null ? sourcePadding.right : 0,
+                0,
+                0);
+            buttonContainerLayout.spacing = 0f;
+            buttonContainerLayout.childAlignment = TextAnchor.UpperCenter;
+            buttonContainerLayout.childControlWidth = true;
+            buttonContainerLayout.childControlHeight = false;
+            buttonContainerLayout.childForceExpandWidth = true;
+            buttonContainerLayout.childForceExpandHeight = false;
+        }
+
+        Canvas.ForceUpdateCanvases();
+
+        dropdownButtonHeight = CalculatePracticeModeButtonHeight();
+
+        if (practiceLayoutElement != null)
+        {
+            practiceLayoutElement.minHeight = dropdownButtonHeight;
+            practiceLayoutElement.preferredHeight = dropdownButtonHeight;
+            practiceLayoutElement.flexibleHeight = 0f;
+        }
+
+        EnsureDropdown();
+        SetDropdownButtonsPreferredHeight(dropdownButtonHeight);
+        RefreshLayout();
+    }
+
+    private void RestorePracticeLayout()
+    {
+        if (!hasPracticeLayoutSnapshot)
+            return;
+
+        dropdownButtonHeight = normalDropdownButtonHeight;
+
+        ResolvePracticeModeLayoutReferences();
+
+        if (buttonContainerRect != null)
+            ApplyRectTransformState(buttonContainerRect, buttonContainerState);
+
+        if (buttonContainerLayout != null)
+            ApplyVerticalLayoutGroupState(buttonContainerLayout, buttonContainerLayoutState);
+
+        if (buttonContainerSizeFitter != null)
+            ApplyContentSizeFitterState(buttonContainerSizeFitter, buttonContainerSizeFitterState);
+
+        if (practiceLayoutElement != null)
+            ApplyLayoutElementState(practiceLayoutElement, practiceLayoutState);
+
+        hasPracticeLayoutSnapshot = false;
+        EnsureDropdown();
+        RefreshLayout();
+    }
+
+    private void ResolvePracticeModeLayoutReferences()
+    {
+        if (practiceRect == null)
+            practiceRect = GetComponent<RectTransform>();
+
+        buttonContainerRect = practiceRect != null ? practiceRect.parent as RectTransform : null;
+        controlPanelRect = buttonContainerRect != null ? buttonContainerRect.parent as RectTransform : null;
+        buttonContainerLayout = buttonContainerRect != null ? buttonContainerRect.GetComponent<VerticalLayoutGroup>() : null;
+        buttonContainerSizeFitter = buttonContainerRect != null ? buttonContainerRect.GetComponent<ContentSizeFitter>() : null;
+        practiceLayoutElement = GetComponent<LayoutElement>();
+    }
+
+    private void CapturePracticeLayoutState()
+    {
+        if (hasPracticeLayoutSnapshot)
+            return;
+
+        normalDropdownButtonHeight = dropdownButtonHeight;
+
+        if (buttonContainerRect != null)
+            buttonContainerState = CaptureRectTransformState(buttonContainerRect);
+
+        if (buttonContainerLayout != null)
+            buttonContainerLayoutState = CaptureVerticalLayoutGroupState(buttonContainerLayout);
+
+        if (buttonContainerSizeFitter != null)
+            buttonContainerSizeFitterState = CaptureContentSizeFitterState(buttonContainerSizeFitter);
+
+        if (practiceLayoutElement != null)
+            practiceLayoutState = CaptureLayoutElementState(practiceLayoutElement);
+
+        hasPracticeLayoutSnapshot = true;
+    }
+
+    private bool CanRestorePracticeModeFromOnDisable()
+    {
+        if (Application.isPlaying)
+            return false;
+
+#if UNITY_EDITOR
+        if (UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode)
+            return false;
+#endif
+
+        return true;
+    }
+
+    private void ClearPracticeModeState()
+    {
+        isPracticeModeActive = false;
+        hasPracticeLayoutSnapshot = false;
+        practiceModeActiveStates.Clear();
+    }
+
+    private float CalculatePracticeModeButtonHeight()
+    {
+        float availableHeight = 0f;
+
+        if (buttonContainerRect != null)
+            availableHeight = buttonContainerRect.rect.height;
+
+        if (availableHeight <= 0f && controlPanelRect != null)
+            availableHeight = controlPanelRect.rect.height;
+
+        if (availableHeight <= 0f)
+            return normalDropdownButtonHeight > 0f ? normalDropdownButtonHeight : dropdownButtonHeight;
+
+        int buttonCount = TaskLabels.Length + 1;
+        float reservedHeight =
+            dropdownTopOffset +
+            dropdownPadding * 2f +
+            Mathf.Max(0, TaskLabels.Length - 1) * dropdownSpacing;
+
+        float targetHeight = (availableHeight - reservedHeight) / buttonCount;
+        return Mathf.Max(28f, targetHeight);
+    }
+
+    private void SetDropdownButtonsPreferredHeight(float preferredHeight)
+    {
+        if (dropdownRect == null)
+            return;
+
+        dropdownRect.sizeDelta = new Vector2(dropdownRect.sizeDelta.x, CalculateDropdownHeight());
+
+        for (int i = 0; i < TaskLabels.Length; i++)
+        {
+            Transform taskTransform = dropdownRect.Find($"task_{i + 1}");
+            if (taskTransform == null)
+                continue;
+
+            LayoutElement layout = taskTransform.GetComponent<LayoutElement>();
+            if (layout == null)
+                continue;
+
+            layout.minHeight = preferredHeight;
+            layout.preferredHeight = preferredHeight;
+            layout.flexibleHeight = 0f;
+        }
+    }
+
+    private static RectTransformState CaptureRectTransformState(RectTransform rectTransform)
+    {
+        return new RectTransformState
+        {
+            AnchorMin = rectTransform.anchorMin,
+            AnchorMax = rectTransform.anchorMax,
+            Pivot = rectTransform.pivot,
+            SizeDelta = rectTransform.sizeDelta,
+            AnchoredPosition = rectTransform.anchoredPosition,
+            OffsetMin = rectTransform.offsetMin,
+            OffsetMax = rectTransform.offsetMax
+        };
+    }
+
+    private static void ApplyRectTransformState(RectTransform rectTransform, RectTransformState state)
+    {
+        rectTransform.anchorMin = state.AnchorMin;
+        rectTransform.anchorMax = state.AnchorMax;
+        rectTransform.pivot = state.Pivot;
+        rectTransform.sizeDelta = state.SizeDelta;
+        rectTransform.anchoredPosition = state.AnchoredPosition;
+        rectTransform.offsetMin = state.OffsetMin;
+        rectTransform.offsetMax = state.OffsetMax;
+    }
+
+    private static VerticalLayoutGroupState CaptureVerticalLayoutGroupState(VerticalLayoutGroup layoutGroup)
+    {
+        return new VerticalLayoutGroupState
+        {
+            Padding = CloneRectOffset(layoutGroup.padding),
+            Spacing = layoutGroup.spacing,
+            ChildAlignment = layoutGroup.childAlignment,
+            ChildControlWidth = layoutGroup.childControlWidth,
+            ChildControlHeight = layoutGroup.childControlHeight,
+            ChildForceExpandWidth = layoutGroup.childForceExpandWidth,
+            ChildForceExpandHeight = layoutGroup.childForceExpandHeight
+        };
+    }
+
+    private static void ApplyVerticalLayoutGroupState(
+        VerticalLayoutGroup layoutGroup,
+        VerticalLayoutGroupState state)
+    {
+        layoutGroup.padding = CloneRectOffset(state.Padding);
+        layoutGroup.spacing = state.Spacing;
+        layoutGroup.childAlignment = state.ChildAlignment;
+        layoutGroup.childControlWidth = state.ChildControlWidth;
+        layoutGroup.childControlHeight = state.ChildControlHeight;
+        layoutGroup.childForceExpandWidth = state.ChildForceExpandWidth;
+        layoutGroup.childForceExpandHeight = state.ChildForceExpandHeight;
+    }
+
+    private static ContentSizeFitterState CaptureContentSizeFitterState(ContentSizeFitter sizeFitter)
+    {
+        return new ContentSizeFitterState
+        {
+            Enabled = sizeFitter.enabled,
+            HorizontalFit = sizeFitter.horizontalFit,
+            VerticalFit = sizeFitter.verticalFit
+        };
+    }
+
+    private static void ApplyContentSizeFitterState(
+        ContentSizeFitter sizeFitter,
+        ContentSizeFitterState state)
+    {
+        sizeFitter.horizontalFit = state.HorizontalFit;
+        sizeFitter.verticalFit = state.VerticalFit;
+        sizeFitter.enabled = state.Enabled;
+    }
+
+    private static LayoutElementState CaptureLayoutElementState(LayoutElement layoutElement)
+    {
+        return new LayoutElementState
+        {
+            IgnoreLayout = layoutElement.ignoreLayout,
+            MinWidth = layoutElement.minWidth,
+            MinHeight = layoutElement.minHeight,
+            PreferredWidth = layoutElement.preferredWidth,
+            PreferredHeight = layoutElement.preferredHeight,
+            FlexibleWidth = layoutElement.flexibleWidth,
+            FlexibleHeight = layoutElement.flexibleHeight,
+            LayoutPriority = layoutElement.layoutPriority
+        };
+    }
+
+    private static void ApplyLayoutElementState(LayoutElement layoutElement, LayoutElementState state)
+    {
+        layoutElement.ignoreLayout = state.IgnoreLayout;
+        layoutElement.minWidth = state.MinWidth;
+        layoutElement.minHeight = state.MinHeight;
+        layoutElement.preferredWidth = state.PreferredWidth;
+        layoutElement.preferredHeight = state.PreferredHeight;
+        layoutElement.flexibleWidth = state.FlexibleWidth;
+        layoutElement.flexibleHeight = state.FlexibleHeight;
+        layoutElement.layoutPriority = state.LayoutPriority;
+    }
+
+    private static RectOffset CloneRectOffset(RectOffset source)
+    {
+        return source == null
+            ? new RectOffset()
+            : new RectOffset(source.left, source.right, source.top, source.bottom);
     }
 
     private void SubscribeRuntimeEvents()
@@ -507,7 +950,9 @@ public class PracticeTasksPopupController : MonoBehaviour
 
     private bool IsPracticeFlowActive()
     {
-        return activeTaskIndex > 0 || (highestUnlockedTask > 1 && highestUnlockedTask <= TaskLabels.Length);
+        return isPracticeModeActive ||
+               activeTaskIndex > 0 ||
+               (highestUnlockedTask > 1 && highestUnlockedTask <= TaskLabels.Length);
     }
 
     private bool IsButtonInteractionAllowedInternal(ControlPanelButton button)
@@ -591,7 +1036,12 @@ public class PracticeTasksPopupController : MonoBehaviour
             cutter.ResetCutState();
 
         if (btn_Animator.IsMachinePowered)
+        {
+            bool wasPracticeModeActive = isPracticeModeActive;
+            isPracticeModeActive = false;
             btn_Animator.TrySimulateButtonPress(ControlPanelButton.PowerSwitch);
+            isPracticeModeActive = wasPracticeModeActive;
+        }
 
         ResolveInfoPanel();
         infoPanel?.ShowDefault();
