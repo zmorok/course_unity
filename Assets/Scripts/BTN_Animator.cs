@@ -69,12 +69,23 @@ public class btn_Animator : MonoBehaviour
     [SerializeField] private float machineFadeInDuration = 0.35f;
     [SerializeField] private float machineFadeOutDuration = 0.5f;
 
+    [Header("UI Toggle")]
+    [SerializeField] private string uiRootObjectName = "Canvas";
+    [SerializeField] private Key uiToggleKey = Key.U;
+
     private AudioSource audioSource;
     private AudioSource machineAudioSource;
     private AudioClip buttonSound;
     private AudioClip machineLoopSound;
     private bool machinePowered;
     private Coroutine machineAudioFadeCoroutine;
+    private GameObject uiRoot;
+    private CanvasGroup uiRootCanvasGroup;
+    private bool uiHiddenByShortcut;
+    private bool hasUiGroupSnapshot;
+    private float uiGroupAlphaBeforeHide = 1f;
+    private bool uiGroupInteractableBeforeHide = true;
+    private bool uiGroupBlocksRaycastsBeforeHide = true;
 
     private void Awake()
     {
@@ -125,6 +136,9 @@ public class btn_Animator : MonoBehaviour
             return;
         }
 
+        if (!shiftPressed && TryHandleUiToggleShortcut())
+            return;
+
         if (shiftPressed)
         {
             ResetButtons(zOnlyMap);
@@ -135,6 +149,80 @@ public class btn_Animator : MonoBehaviour
             ResetButtons(zShiftMap);
             PlayFromMap(zOnlyMap);
         }
+    }
+
+    private bool TryHandleUiToggleShortcut()
+    {
+        if (uiToggleKey == Key.None || !keyboard[uiToggleKey].wasPressedThisFrame)
+            return false;
+
+        ToggleUiVisibility();
+        return true;
+    }
+
+    private void ToggleUiVisibility()
+    {
+        if (uiHiddenByShortcut)
+            ShowUi();
+        else
+            HideUi();
+    }
+
+    private void HideUi()
+    {
+        if (!ResolveUiCanvasGroup())
+            return;
+
+        uiGroupAlphaBeforeHide = uiRootCanvasGroup.alpha;
+        uiGroupInteractableBeforeHide = uiRootCanvasGroup.interactable;
+        uiGroupBlocksRaycastsBeforeHide = uiRootCanvasGroup.blocksRaycasts;
+        hasUiGroupSnapshot = true;
+
+        uiRootCanvasGroup.alpha = 0f;
+        uiRootCanvasGroup.interactable = false;
+        uiRootCanvasGroup.blocksRaycasts = false;
+        uiHiddenByShortcut = true;
+    }
+
+    private void ShowUi()
+    {
+        if (!ResolveUiCanvasGroup())
+            return;
+
+        uiRootCanvasGroup.alpha = hasUiGroupSnapshot ? uiGroupAlphaBeforeHide : 1f;
+        uiRootCanvasGroup.interactable = hasUiGroupSnapshot ? uiGroupInteractableBeforeHide : true;
+        uiRootCanvasGroup.blocksRaycasts = hasUiGroupSnapshot ? uiGroupBlocksRaycastsBeforeHide : true;
+        uiHiddenByShortcut = false;
+        hasUiGroupSnapshot = false;
+    }
+
+    private bool ResolveUiCanvasGroup()
+    {
+        if (uiRoot == null)
+        {
+            if (!string.IsNullOrWhiteSpace(uiRootObjectName))
+                uiRoot = GameObject.Find(uiRootObjectName);
+
+            if (uiRoot == null)
+            {
+                Canvas canvas = UnityEngine.Object.FindFirstObjectByType<Canvas>();
+                uiRoot = canvas != null ? canvas.gameObject : null;
+            }
+        }
+
+        if (uiRoot == null)
+        {
+            Debug.LogWarning("Корневой объект UI не найден, переключение видимости UI невозможно.");
+            return false;
+        }
+
+        if (uiRootCanvasGroup == null)
+            uiRootCanvasGroup = uiRoot.GetComponent<CanvasGroup>();
+
+        if (uiRootCanvasGroup == null)
+            uiRootCanvasGroup = uiRoot.AddComponent<CanvasGroup>();
+
+        return true;
     }
 
     private void RegisterButtons()

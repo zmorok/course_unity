@@ -33,7 +33,9 @@ public class CameraDualModeController : MonoBehaviour
 
     [Header("Free Camera")]
     public float freeMoveSpeed = 5f;
+    public float freeMoveSmoothTime = 0.12f;
     public float freeLookSpeed = 0.15f;
+    public float freeLookSmoothTime = 0.08f;
     public float freeYaw = 0f;
     public float freePitch = 0f;
     public float minFreePitch = -80f;
@@ -54,6 +56,12 @@ public class CameraDualModeController : MonoBehaviour
     private Keyboard keyboard;
     private bool inputLocked;
     private bool freeLookDragActive;
+    private Vector3 freeMoveVelocity;
+    private Vector3 freeMoveVelocityRef;
+    private float smoothedFreeYaw;
+    private float smoothedFreePitch;
+    private float freeYawSmoothVelocity;
+    private float freePitchSmoothVelocity;
 
     private void Start()
     {
@@ -124,10 +132,12 @@ public class CameraDualModeController : MonoBehaviour
         {
             currentMode = CameraMode.Free;
             CaptureFreeAnglesFromCurrentRotation();
+            ResetFreeMovementSmoothing();
         }
         else
         {
             currentMode = CameraMode.Orbit;
+            ResetFreeMovementSmoothing();
             ApplyOrbitFromAnchor();
         }
     }
@@ -137,6 +147,10 @@ public class CameraDualModeController : MonoBehaviour
         Vector3 euler = transform.eulerAngles;
         freeYaw = euler.y;
         freePitch = NormalizeAngle(euler.x);
+        smoothedFreeYaw = freeYaw;
+        smoothedFreePitch = freePitch;
+        freeYawSmoothVelocity = 0f;
+        freePitchSmoothVelocity = 0f;
     }
 
     private void ApplyOrbitFromAnchor()
@@ -239,32 +253,35 @@ public class CameraDualModeController : MonoBehaviour
 
     private void HandleFreeLook()
     {
-        if (!mouse.leftButton.isPressed)
+        if (mouse.leftButton.isPressed)
+        {
+            if (!freeLookDragActive || mouse.leftButton.wasPressedThisFrame)
+            {
+                CaptureFreeAnglesFromCurrentRotation();
+                freeLookDragActive = true;
+            }
+            else
+            {
+                Vector2 delta = mouse.delta.ReadValue();
+
+                freeYaw += delta.x * freeLookSpeed;
+                freePitch -= delta.y * freeLookSpeed;
+                freePitch = Mathf.Clamp(freePitch, minFreePitch, maxFreePitch);
+            }
+        }
+        else
         {
             freeLookDragActive = false;
-            return;
         }
 
-        if (!freeLookDragActive || mouse.leftButton.wasPressedThisFrame)
-        {
-            CaptureFreeAnglesFromCurrentRotation();
-            freeLookDragActive = true;
-            return;
-        }
-
-        Vector2 delta = mouse.delta.ReadValue();
-
-        freeYaw += delta.x * freeLookSpeed;
-        freePitch -= delta.y * freeLookSpeed;
-        freePitch = Mathf.Clamp(freePitch, minFreePitch, maxFreePitch);
-
-        transform.rotation = Quaternion.Euler(freePitch, freeYaw, 0f);
+        ApplyFreeLookSmoothing();
     }
 
     public void BeginScriptedControl(bool forceFreeMode = true)
     {
         inputLocked = true;
         freeLookDragActive = false;
+        ResetFreeMovementSmoothing();
 
         if (forceFreeMode)
             currentMode = CameraMode.Free;
@@ -330,12 +347,65 @@ public class CameraDualModeController : MonoBehaviour
         if (keyboard.dKey.isPressed) move += right;
         if (keyboard.spaceKey.isPressed) move += Vector3.up;
         if (keyboard.leftShiftKey.isPressed) move += Vector3.down;
-        if (move == Vector3.zero) return;
 
-        move.Normalize();
+        Vector3 targetVelocity = Vector3.zero;
+        if (move != Vector3.zero)
+            targetVelocity = move.normalized * freeMoveSpeed;
 
-        Vector3 newPosition = transform.position + move * freeMoveSpeed * Time.deltaTime;
-        transform.position = ClampPositionToRoom(newPosition);
+        float smoothTime = Mathf.Max(0.001f, freeMoveSmoothTime);
+        freeMoveVelocity = Vector3.SmoothDamp(
+            freeMoveVelocity,
+            targetVelocity,
+            ref freeMoveVelocityRef,
+            smoothTime);
+
+        if (freeMoveVelocity.sqrMagnitude < 0.000001f)
+        {
+            freeMoveVelocity = Vector3.zero;
+            return;
+        }
+
+        Vector3 requestedPosition = transform.position + freeMoveVelocity * Time.deltaTime;
+        Vector3 clampedPosition = ClampPositionToRoom(requestedPosition);
+
+        StopBlockedFreeVelocityAxes(requestedPosition, clampedPosition);
+        transform.position = clampedPosition;
+    }
+
+    private void ApplyFreeLookSmoothing()
+    {
+        float smoothTime = Mathf.Max(0.001f, freeLookSmoothTime);
+        smoothedFreeYaw = Mathf.SmoothDampAngle(smoothedFreeYaw, freeYaw, ref freeYawSmoothVelocity, smoothTime);
+        smoothedFreePitch = Mathf.SmoothDampAngle(smoothedFreePitch, freePitch, ref freePitchSmoothVelocity, smoothTime);
+
+        transform.rotation = Quaternion.Euler(smoothedFreePitch, smoothedFreeYaw, 0f);
+    }
+
+    private void ResetFreeMovementSmoothing()
+    {
+        freeMoveVelocity = Vector3.zero;
+        freeMoveVelocityRef = Vector3.zero;
+    }
+
+    private void StopBlockedFreeVelocityAxes(Vector3 requestedPosition, Vector3 clampedPosition)
+    {
+        if (!Mathf.Approximately(requestedPosition.x, clampedPosition.x))
+        {
+            freeMoveVelocity.x = 0f;
+            freeMoveVelocityRef.x = 0f;
+        }
+
+        if (!Mathf.Approximately(requestedPosition.y, clampedPosition.y))
+        {
+            freeMoveVelocity.y = 0f;
+            freeMoveVelocityRef.y = 0f;
+        }
+
+        if (!Mathf.Approximately(requestedPosition.z, clampedPosition.z))
+        {
+            freeMoveVelocity.z = 0f;
+            freeMoveVelocityRef.z = 0f;
+        }
     }
 
     private Vector3 ClampPositionToRoom(Vector3 pos)

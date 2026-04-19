@@ -4,6 +4,7 @@ using UnityEngine.InputSystem;
 public class CameraViewController : MonoBehaviour
 {
     [SerializeField] private float moveSpeed = 2.5f;
+    [SerializeField] private float rotationSpeed = 6f;
     [SerializeField] private Transform startCameraAnchor;
 
     [Header("Animated parts")]
@@ -74,7 +75,7 @@ public class CameraViewController : MonoBehaviour
         if (!isMoving) return;
 
         transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * moveSpeed);
-        transform.rotation = targetRotation;
+        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
 
         bool positionReached = Vector3.Distance(transform.position, targetPosition) < 0.01f;
         bool rotationReached = Quaternion.Angle(transform.rotation, targetRotation) < 0.1f;
@@ -97,7 +98,6 @@ public class CameraViewController : MonoBehaviour
 
         targetPosition = newPosition;
         targetRotation = newRotation;
-        transform.rotation = targetRotation;
         isMoving = true;
     }
 

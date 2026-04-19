@@ -5,13 +5,15 @@ using System.Collections;
 public class CUT_Animator : MonoBehaviour
 {
     public static event Action<bool> CuttingStateChanged;
+    public static event Action CutCompletedAfterLift;
     public static bool IsCutting { get; private set; }
 
     [SerializeField] private Animator holderAnimator;
     [SerializeField] private Animator bladeAnimator;
 
     [SerializeField] private float holdDuration = 0.5f;
-    [SerializeField] private float cutDuration = 0.4f;
+    [SerializeField] private float cutDuration = 0.6f;
+    [SerializeField] private float liftDuration = 0.4f;
     [SerializeField] private float soundDuration = 1.2f;
 
     private bool isCutInProgress;
@@ -92,14 +94,19 @@ public class CUT_Animator : MonoBehaviour
         holderAnimator.SetBool("isHolding", false);
         bladeAnimator.SetBool("isCutting", false);
 
+        float clampedLiftDuration = Mathf.Max(0f, liftDuration);
+        if (clampedLiftDuration > 0f)
+            yield return new WaitForSeconds(clampedLiftDuration);
+
         CutCompleted = true;
         isCutInProgress = false;
         isHoldInProgress = false;
         SetCuttingState(false, notifyListeners: true);
+        CutCompletedAfterLift?.Invoke();
 
-        float extraSoundTime = Mathf.Max(0f, soundDuration - cutDuration);
+        float extraSoundTime = Mathf.Max(0f, soundDuration - holdDuration - cutDuration - clampedLiftDuration);
         if (extraSoundTime > 0f)
-            yield return new WaitForSeconds(extraSoundTime + 0.3f);
+            yield return new WaitForSeconds(extraSoundTime + 1.3f);
 
         if (audioSource != null)
             audioSource.Stop();

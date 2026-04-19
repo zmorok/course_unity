@@ -6545,7 +6545,9 @@ MonoBehaviour:
   minOrbitPitch: 5
   maxOrbitPitch: 60
   freeMoveSpeed: 5
+  freeMoveSmoothTime: 0.12
   freeLookSpeed: 0.15
+  freeLookSmoothTime: 0.02
   freeYaw: 0
   freePitch: 0
   minFreePitch: -80
@@ -6570,6 +6572,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CameraToPartController
   moveSpeed: 2.5
+  rotationSpeed: 6
   startCameraAnchor: {fileID: 1503448185}
   bladeAnimator: {fileID: 4711366461482865372}
   holderAnimator: {fileID: 8093685889537768353}
@@ -17282,6 +17285,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!1 &859566034464692162
 GameObject:
   m_ObjectHideFlags: 0
@@ -17342,6 +17347,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!4 &924472401926985883
 Transform:
   m_ObjectHideFlags: 0
@@ -17593,6 +17600,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!95 &1175902970186541845
 Animator:
   serializedVersion: 7
@@ -17781,6 +17790,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!1 &1410811107063774236
 GameObject:
   m_ObjectHideFlags: 0
@@ -18486,6 +18497,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!1 &1983717989804862247
 GameObject:
   m_ObjectHideFlags: 0
@@ -19170,6 +19183,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!4 &2558593758763464478
 Transform:
   m_ObjectHideFlags: 0
@@ -19703,6 +19718,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!95 &3000820807030954379
 Animator:
   serializedVersion: 7
@@ -19995,6 +20012,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!23 &3398077975891123270
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -20336,6 +20355,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!1 &3646845510366096176
 GameObject:
   m_ObjectHideFlags: 0
@@ -20593,6 +20614,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!4 &3840472859494358928
 Transform:
   m_ObjectHideFlags: 0
@@ -21016,6 +21039,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!1 &4307573739352609359
 GameObject:
   m_ObjectHideFlags: 0
@@ -21981,6 +22006,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!4 &4837441744427397073
 Transform:
   m_ObjectHideFlags: 0
@@ -22120,6 +22147,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!1 &4940884018123745558
 GameObject:
   m_ObjectHideFlags: 0
@@ -22330,6 +22359,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!33 &5132680242935405560
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -22405,6 +22436,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!33 &5343622328440871699
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -22667,6 +22700,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!23 &5533927673912045890
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -22809,6 +22844,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!1 &5592726666777528356
 GameObject:
   m_ObjectHideFlags: 0
@@ -22915,6 +22952,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!1 &5686957334822230256
 GameObject:
   m_ObjectHideFlags: 0
@@ -22949,6 +22988,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!95 &5750544405098666775
 Animator:
   serializedVersion: 7
@@ -23012,6 +23053,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!4 &5800886517850047368
 Transform:
   m_ObjectHideFlags: 0
@@ -23071,6 +23114,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!4 &5856309405054156540
 Transform:
   m_ObjectHideFlags: 0
@@ -23919,6 +23964,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!33 &6661995468758433397
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -24018,7 +24065,8 @@ MonoBehaviour:
   holderAnimator: {fileID: 8093685889537768353}
   bladeAnimator: {fileID: 4711366461482865372}
   holdDuration: 0.5
-  cutDuration: 0.4
+  cutDuration: 0.6
+  liftDuration: 0.4
   soundDuration: 1.2
 --- !u!95 &6807148715215706957
 Animator:
@@ -24581,6 +24629,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!4 &7327307334911291904
 Transform:
   m_ObjectHideFlags: 0
@@ -25687,6 +25737,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!4 &8334199301047331774
 Transform:
   m_ObjectHideFlags: 0
@@ -26496,6 +26548,8 @@ MonoBehaviour:
   machinePitch: 0.85
   machineFadeInDuration: 0.35
   machineFadeOutDuration: 0.5
+  uiRootObjectName: Canvas
+  uiToggleKey: 35
 --- !u!1 &9059384886678168704
 GameObject:
   m_ObjectHideFlags: 0

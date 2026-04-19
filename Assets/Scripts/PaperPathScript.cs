@@ -81,6 +81,8 @@ public class PaperPathMover : MonoBehaviour
     private bool isMoving;
     private bool cutCommandApplied;
     private bool cutOffsetApplied;
+    private bool cutCompletedAwaitingSeparatedRoute;
+    private bool backHolderReturnedAfterCut;
 
     private void OnValidate()
     {
@@ -127,11 +129,13 @@ public class PaperPathMover : MonoBehaviour
     private void OnEnable()
     {
         btn_Animator.MachinePowerChanged += HandleMachinePowerChanged;
+        CUT_Animator.CutCompletedAfterLift += HandleCutCompletedAfterLift;
     }
 
     private void OnDisable()
     {
         btn_Animator.MachinePowerChanged -= HandleMachinePowerChanged;
+        CUT_Animator.CutCompletedAfterLift -= HandleCutCompletedAfterLift;
     }
 
     private void Update()
@@ -360,6 +364,7 @@ public class PaperPathMover : MonoBehaviour
         stage == MoveStage.WholePaper &&
         currentPaperIndex == cutWaitPaperPointIndex &&
         !isMoving &&
+        !cutCompletedAwaitingSeparatedRoute &&
         !IsFinished;
 
     public bool TryApplyCutCommand(float cutSize, out string statusLabel, out string errorMessage)
@@ -381,6 +386,8 @@ public class PaperPathMover : MonoBehaviour
         SelectVariant(selectedVariant);
         cutCommandApplied = true;
         cutOffsetApplied = false;
+        cutCompletedAwaitingSeparatedRoute = false;
+        backHolderReturnedAfterCut = false;
         RefreshCutAvailability();
 
         StartCoroutine(MovePaperToCutOffset(selectedVariant));
@@ -446,15 +453,17 @@ public class PaperPathMover : MonoBehaviour
         isMoving = true;
         cutCommandApplied = false;
         cutOffsetApplied = false;
+        cutCompletedAwaitingSeparatedRoute = false;
 
         if (cutter != null)
             cutter.CanBeCutted = false;
 
         RefreshCutAvailability();
 
-        if (backHolder != null)
+        if (backHolder != null && !backHolderReturnedAfterCut)
         {
             yield return MoveBackHolderToInitialPose();
+            backHolderReturnedAfterCut = true;
         }
 
         stage = MoveStage.SecPart;
@@ -474,6 +483,8 @@ public class PaperPathMover : MonoBehaviour
         bool hadCutOffset = cutOffsetApplied;
         cutCommandApplied = false;
         cutOffsetApplied = false;
+        cutCompletedAwaitingSeparatedRoute = false;
+        backHolderReturnedAfterCut = false;
 
         if (cutter != null)
             cutter.CanBeCutted = false;
@@ -496,6 +507,8 @@ public class PaperPathMover : MonoBehaviour
     private IEnumerator MovePaperToCutOffset(PaperCutVariant selectedVariant)
     {
         isMoving = true;
+        cutCompletedAwaitingSeparatedRoute = false;
+        backHolderReturnedAfterCut = false;
         RefreshCutAvailability();
 
         Transform cutPoint = paperPoints[cutWaitPaperPointIndex];
@@ -523,6 +536,48 @@ public class PaperPathMover : MonoBehaviour
         RefreshCutAvailability();
 
         Debug.Log($"Выбран тип бумаги {selectedVariant.Label}, бумага смещена к линии реза");
+    }
+
+    private void HandleCutCompletedAfterLift()
+    {
+        if (!IsAtCutWaitPoint())
+            return;
+
+        if (!cutCommandApplied && !cutOffsetApplied)
+            return;
+
+        cutCommandApplied = false;
+        cutOffsetApplied = false;
+        cutCompletedAwaitingSeparatedRoute = true;
+
+        if (backHolder == null)
+        {
+            backHolderReturnedAfterCut = true;
+            RefreshCutAvailability();
+            return;
+        }
+
+        if (isMoving)
+        {
+            RefreshCutAvailability();
+            return;
+        }
+
+        StartCoroutine(ReturnBackHolderAfterCutRoutine());
+    }
+
+    private IEnumerator ReturnBackHolderAfterCutRoutine()
+    {
+        isMoving = true;
+        RefreshCutAvailability();
+
+        yield return MoveBackHolderToInitialPose();
+
+        backHolderReturnedAfterCut = true;
+        isMoving = false;
+        RefreshCutAvailability();
+
+        Debug.Log("Нож и держатель поднялись. Задний упор возвращён.");
     }
 
     private IEnumerator MovePaperToCutWaitPoint()
@@ -825,6 +880,8 @@ public class PaperPathMover : MonoBehaviour
             isMoving = false;
             cutCommandApplied = false;
             cutOffsetApplied = false;
+            cutCompletedAwaitingSeparatedRoute = false;
+            backHolderReturnedAfterCut = false;
 
             if (backHolder != null)
             {
@@ -848,6 +905,7 @@ public class PaperPathMover : MonoBehaviour
             currentPaperIndex == cutWaitPaperPointIndex &&
             cutCommandApplied &&
             cutOffsetApplied &&
+            !cutCompletedAwaitingSeparatedRoute &&
             activeVariant != null;
 
         cutter.CanBeCutted = canCutNow;
@@ -866,6 +924,8 @@ public class PaperPathMover : MonoBehaviour
         stage = MoveStage.WholePaper;
         cutCommandApplied = false;
         cutOffsetApplied = false;
+        cutCompletedAwaitingSeparatedRoute = false;
+        backHolderReturnedAfterCut = false;
 
         paper.SetPositionAndRotation(paperPoints[0].position, paperPoints[0].rotation);
 
