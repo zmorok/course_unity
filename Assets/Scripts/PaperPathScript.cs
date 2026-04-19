@@ -195,10 +195,22 @@ public class PaperPathMover : MonoBehaviour
             }
 
             cutter.CanBeCutted = false;
+            BeginSeparatedPartsRoute();
+            TryMoveSecNext();
+            return;
         }
 
         int nextIndex = currentPaperIndex + 1;
         StartCoroutine(MoveWholePaperToPoint(nextIndex));
+    }
+
+    private void BeginSeparatedPartsRoute()
+    {
+        stage = MoveStage.SecPart;
+        currentSecIndex = -1;
+        currentMainIndex = -1;
+        RefreshCutAvailability();
+        Debug.Log("Рез завершён. Дальше двигается только sec");
     }
 
     private void TryMoveSecNext()

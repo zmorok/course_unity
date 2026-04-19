@@ -92,14 +92,14 @@ public class CUT_Animator : MonoBehaviour
         holderAnimator.SetBool("isHolding", false);
         bladeAnimator.SetBool("isCutting", false);
 
-        float extraSoundTime = Mathf.Max(0f, soundDuration - cutDuration);
-        if (extraSoundTime > 0f)
-            yield return new WaitForSeconds(extraSoundTime + 0.3f);
-
+        CutCompleted = true;
         isCutInProgress = false;
         isHoldInProgress = false;
         SetCuttingState(false, notifyListeners: true);
-        CutCompleted = true;
+
+        float extraSoundTime = Mathf.Max(0f, soundDuration - cutDuration);
+        if (extraSoundTime > 0f)
+            yield return new WaitForSeconds(extraSoundTime + 0.3f);
 
         if (audioSource != null)
             audioSource.Stop();
