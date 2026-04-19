@@ -431,6 +431,12 @@ public class PaperPathMover : MonoBehaviour
             return;
         }
 
+        if (currentPaperIndex == 0 && paperPoints.Length > 3)
+        {
+            StartCoroutine(MoveWholePaperThroughInitialPickupTrajectory());
+            return;
+        }
+
         int nextIndex = currentPaperIndex + 1;
         StartCoroutine(MoveWholePaperToPoint(nextIndex));
     }
@@ -717,6 +723,24 @@ public class PaperPathMover : MonoBehaviour
             Debug.Log("Дальше будет двигаться только sec");
         }
 
+        RefreshCutAvailability();
+    }
+
+    private IEnumerator MoveWholePaperThroughInitialPickupTrajectory()
+    {
+        isMoving = true;
+        cutCommandApplied = false;
+        cutOffsetApplied = false;
+        RefreshCutAvailability();
+
+        yield return MovePaperToPose(paperPoints[1].position, paperPoints[1].rotation);
+        yield return MovePaperToPose(paperPoints[2].position, paperPoints[2].rotation);
+        yield return MovePaperToPose(paperPoints[3].position, paperPoints[3].rotation);
+
+        currentPaperIndex = 3;
+        isMoving = false;
+
+        Debug.Log("Весь лист перемещён по траектории P_1 -> P_2 -> P_3 -> P_4");
         RefreshCutAvailability();
     }
 

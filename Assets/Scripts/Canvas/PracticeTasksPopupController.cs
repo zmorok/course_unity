@@ -23,8 +23,7 @@ public class PracticeTasksPopupController : MonoBehaviour
         "Задание 5",
         "Задание 6",
         "Задание 7",
-        "Задание 8",
-        "Задание 9"
+        "Задание 8"
     };
 
     [Header("Dropdown")]
@@ -47,8 +46,7 @@ public class PracticeTasksPopupController : MonoBehaviour
     };
 
     [Header("Paper Targets")]
-    [SerializeField] private int task2TargetPaperPointIndex = 1;
-    [SerializeField] private int task3TargetPaperPointIndex = 3;
+    [SerializeField] private int task2TargetPaperPointIndex = 3;
 
     private Button practiceButton;
     private RectTransform practiceRect;
@@ -76,6 +74,9 @@ public class PracticeTasksPopupController : MonoBehaviour
     private LayoutElementState practiceLayoutState;
     private float normalDropdownButtonHeight;
     private readonly Dictionary<GameObject, bool> practiceModeActiveStates = new();
+#if UNITY_EDITOR
+    private bool validateLayoutQueued;
+#endif
 
     private struct RectTransformState
     {
@@ -223,10 +224,43 @@ public class PracticeTasksPopupController : MonoBehaviour
         highestUnlockedTask = Mathf.Clamp(highestUnlockedTask, 1, TaskLabels.Length + 1);
         activeTaskIndex = Mathf.Clamp(activeTaskIndex, 0, TaskLabels.Length);
 
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+        {
+            QueueValidateLayoutRefresh();
+            return;
+        }
+#endif
+
         EnsureDropdown();
         UpdateButtonStates();
         RefreshLayout();
     }
+
+#if UNITY_EDITOR
+    private void QueueValidateLayoutRefresh()
+    {
+        if (validateLayoutQueued)
+            return;
+
+        validateLayoutQueued = true;
+        UnityEditor.EditorApplication.delayCall += ApplyQueuedValidateLayoutRefresh;
+    }
+
+    private void ApplyQueuedValidateLayoutRefresh()
+    {
+        validateLayoutQueued = false;
+
+        if (this == null)
+            return;
+
+        practiceRect = GetComponent<RectTransform>();
+        fontAsset = ResolveFontAsset();
+        EnsureDropdown();
+        UpdateButtonStates();
+        RefreshLayout();
+    }
+#endif
 
     public void ToggleWindow()
     {
@@ -866,7 +900,7 @@ public class PracticeTasksPopupController : MonoBehaviour
 
     private void HandlePanelButtonPressed(ControlPanelButton button)
     {
-        if (!Application.isPlaying || activeTaskIndex != 5)
+        if (!Application.isPlaying || activeTaskIndex != 4)
             return;
 
         if (requiredCommandSequence == null || requiredCommandSequence.Length == 0)
@@ -910,7 +944,7 @@ public class PracticeTasksPopupController : MonoBehaviour
 
     private void HandleCuttingStateChanged(bool isCutting)
     {
-        if (!Application.isPlaying || activeTaskIndex != 6)
+        if (!Application.isPlaying || activeTaskIndex != 5)
             return;
 
         if (isCutting)
@@ -928,17 +962,16 @@ public class PracticeTasksPopupController : MonoBehaviour
         {
             1 => btn_Animator.IsMachinePowered,
             2 => paperMover != null && paperMover.CurrentPaperPointIndex >= task2TargetPaperPointIndex,
-            3 => paperMover != null && paperMover.CurrentPaperPointIndex >= task3TargetPaperPointIndex,
-            4 => paperMover != null && paperMover.CurrentPaperPointIndex >= paperMover.CutWaitPaperPointIndex,
-            5 => requiredCommandSequence != null &&
+            3 => paperMover != null && paperMover.CurrentPaperPointIndex >= paperMover.CutWaitPaperPointIndex,
+            4 => requiredCommandSequence != null &&
                  requiredCommandSequence.Length > 0 &&
                  commandSequenceProgress >= requiredCommandSequence.Length,
-            6 => (cutObservedDuringActiveTask && !CUT_Animator.IsCutting) ||
+            5 => (cutObservedDuringActiveTask && !CUT_Animator.IsCutting) ||
                  (cutter != null && cutter.CutCompleted) ||
                  (paperMover != null && (paperMover.IsSecStage || paperMover.IsMainStage || paperMover.IsFinished)),
-            7 => paperMover != null && (paperMover.IsMainStage || paperMover.IsFinished),
-            8 => paperMover != null && paperMover.IsFinished,
-            9 => !btn_Animator.IsMachinePowered,
+            6 => paperMover != null && (paperMover.IsMainStage || paperMover.IsFinished),
+            7 => paperMover != null && paperMover.IsFinished,
+            8 => !btn_Animator.IsMachinePowered,
             _ => false
         };
 
@@ -969,9 +1002,9 @@ public class PracticeTasksPopupController : MonoBehaviour
         return activeTaskIndex switch
         {
             1 => button == ControlPanelButton.PowerSwitch,
-            5 => button != ControlPanelButton.PowerSwitch && button != ControlPanelButton.DualStart,
-            6 => button == ControlPanelButton.DualStart,
-            9 => button == ControlPanelButton.PowerSwitch,
+            4 => button != ControlPanelButton.PowerSwitch && button != ControlPanelButton.DualStart,
+            5 => button == ControlPanelButton.DualStart,
+            8 => button == ControlPanelButton.PowerSwitch,
             _ => false
         };
     }
@@ -987,10 +1020,9 @@ public class PracticeTasksPopupController : MonoBehaviour
         return activeTaskIndex switch
         {
             2 => paperMover.CurrentPaperPointIndex < task2TargetPaperPointIndex,
-            3 => paperMover.CurrentPaperPointIndex < task3TargetPaperPointIndex,
-            4 => paperMover.CurrentPaperPointIndex < paperMover.CutWaitPaperPointIndex,
-            7 => !paperMover.IsMainStage && !paperMover.IsFinished,
-            8 => !paperMover.IsFinished,
+            3 => paperMover.CurrentPaperPointIndex < paperMover.CutWaitPaperPointIndex,
+            6 => !paperMover.IsMainStage && !paperMover.IsFinished,
+            7 => !paperMover.IsFinished,
             _ => false
         };
     }
@@ -1003,7 +1035,7 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (activeTaskIndex <= 0)
             return false;
 
-        return activeTaskIndex == 6;
+        return activeTaskIndex == 5;
     }
 
     private void CompleteActiveTask(int taskIndex)
@@ -1053,14 +1085,13 @@ public class PracticeTasksPopupController : MonoBehaviour
         return taskIndex switch
         {
             1 => "Задание 1. Запустить станок.\nКак выполнить: удерживайте Z и нажмите O, чтобы включить питание станка.",
-            2 => "Задание 2. Достать бумагу.\nКак выполнить: удерживайте N и нажмите M один раз, чтобы достать бумагу из исходного положения.",
-            3 => "Задание 3. Положить бумагу на стол.\nКак выполнить: удерживайте N и нажмите M два раза, чтобы перевести бумагу из положения в воздухе на стол.",
-            4 => "Задание 4. Разместить бумагу в зоне реза.\nКак выполнить: удерживайте N и нажмите M ещё раз, чтобы переместить бумагу со стола в зону реза.",
-            5 => "Задание 5. Ввести команду на панели управления.\nКак выполнить: удерживайте Z и последовательно нажмите 1, 0, 0, затем Enter.",
-            6 => "Задание 6. Запустить рез бумаги.\nКак выполнить: удерживайте Z и нажмите V. Эта комбинация запускает двойной пуск и сам рез одним действием.",
-            7 => "Задание 7. Убрать отрезанную часть sec.\nКак выполнить: удерживайте N и нажимайте M, пока часть sec не уйдёт в левый мусорный бокс.",
-            8 => "Задание 8. Убрать нужную часть main.\nКак выполнить: удерживайте N и нажимайте M, пока часть main не уйдёт в правый ящик.",
-            9 => "Задание 9. Выключить станок.\nКак выполнить: удерживайте Z и нажмите O ещё раз, чтобы выключить питание.",
+            2 => "Задание 2. Достать бумагу и положить её на стол.\nКак выполнить: удерживайте N и нажмите M один раз, чтобы переместить бумагу по траектории до стола.",
+            3 => "Задание 3. Разместить бумагу в зоне реза.\nКак выполнить: удерживайте N и нажмите M ещё раз, чтобы переместить бумагу со стола в зону реза.",
+            4 => "Задание 4. Ввести команду на панели управления.\nКак выполнить: удерживайте Z и последовательно нажмите 1, 0, 0, затем Enter.",
+            5 => "Задание 5. Запустить рез бумаги.\nКак выполнить: удерживайте Z и нажмите V. Эта комбинация запускает двойной пуск и сам рез одним действием.",
+            6 => "Задание 6. Убрать отрезанную часть sec.\nКак выполнить: удерживайте N и нажимайте M, пока часть sec не уйдёт в левый мусорный бокс.",
+            7 => "Задание 7. Убрать нужную часть main.\nКак выполнить: удерживайте N и нажимайте M, пока часть main не уйдёт в правый ящик.",
+            8 => "Задание 8. Выключить станок.\nКак выполнить: удерживайте Z и нажмите O ещё раз, чтобы выключить питание.",
             _ => string.Empty
         };
     }
