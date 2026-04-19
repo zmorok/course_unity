@@ -23,7 +23,7 @@ public class PaperPathMover : MonoBehaviour
         public string RootObjectName = "paper_A";
         public float MinCutSize = 100f;
         public float MaxCutSize = 300f;
-        public float CutForwardOffset = 0.15f;
+        public float CutForwardOffset = -0.015f;
 
         [NonSerialized] public Transform Root;
         [NonSerialized] public Transform Main;
@@ -41,9 +41,15 @@ public class PaperPathMover : MonoBehaviour
         }
     }
 
+    [Header("Back Cut Holder")]
+    [SerializeField] private Transform backHolder;
+    private Vector3 backHolderInitialLocalPosition;
+    private Quaternion backHolderInitialLocalRotation;
+
     [Header("Paper hierarchy")]
     [SerializeField] private Transform paper;
-    [SerializeField] private PaperCutVariant[] cutVariants =
+    [SerializeField]
+    private PaperCutVariant[] cutVariants =
     {
         new() { Label = "A", RootObjectName = "paper_A", MinCutSize = 100f, MaxCutSize = 300f, CutForwardOffset = -0.015f },
         new() { Label = "B", RootObjectName = "paper_B", MinCutSize = 301f, MaxCutSize = 600f, CutForwardOffset = -0.18f },
@@ -92,6 +98,12 @@ public class PaperPathMover : MonoBehaviour
             return;
         }
 
+        if (backHolder != null)
+        {
+            backHolderInitialLocalPosition = backHolder.localPosition;
+            backHolderInitialLocalRotation = backHolder.localRotation;
+        }
+
         if (!ResolvePaperVariants())
         {
             enabled = false;
@@ -112,6 +124,39 @@ public class PaperPathMover : MonoBehaviour
         ResetPaperToStart();
     }
 
+    private void OnEnable()
+    {
+        btn_Animator.MachinePowerChanged += HandleMachinePowerChanged;
+    }
+
+    private void OnDisable()
+    {
+        btn_Animator.MachinePowerChanged -= HandleMachinePowerChanged;
+    }
+
+    private void Update()
+    {
+        Keyboard keyboard = Keyboard.current;
+        if (keyboard == null) return;
+
+        // Рестарт всего сценария: удерживаем R, нажимаем T
+        if (keyboard.rKey.isPressed && keyboard.tKey.wasPressedThisFrame)
+        {
+            ResetPaperToStart();
+            return;
+        }
+
+        if (isMoving) return;
+        if (!btn_Animator.IsMachinePowered) return;
+        if (!PracticeTasksPopupController.IsPaperAdvanceAllowed()) return;
+
+        // Движение по маршруту: удерживаем N, нажимаем M
+        if (keyboard.nKey.isPressed && keyboard.mKey.wasPressedThisFrame)
+        {
+            TryMoveNext();
+        }
+    }
+
     private void EnsureDefaultCutVariants()
     {
         if (cutVariants != null && cutVariants.Length > 0)
@@ -125,7 +170,7 @@ public class PaperPathMover : MonoBehaviour
                 RootObjectName = "paper_A",
                 MinCutSize = 100f,
                 MaxCutSize = 300f,
-                CutForwardOffset = 0.15f
+                CutForwardOffset = -0.015f
             },
             new PaperCutVariant
             {
@@ -133,7 +178,7 @@ public class PaperPathMover : MonoBehaviour
                 RootObjectName = "paper_B",
                 MinCutSize = 301f,
                 MaxCutSize = 600f,
-                CutForwardOffset = 0.45f
+                CutForwardOffset = -0.18f
             },
             new PaperCutVariant
             {
@@ -141,7 +186,7 @@ public class PaperPathMover : MonoBehaviour
                 RootObjectName = "paper_C",
                 MinCutSize = 601f,
                 MaxCutSize = 900f,
-                CutForwardOffset = 0.75f
+                CutForwardOffset = -0.365f
             }
         };
     }
@@ -263,39 +308,6 @@ public class PaperPathMover : MonoBehaviour
         }
     }
 
-    private void OnEnable()
-    {
-        btn_Animator.MachinePowerChanged += HandleMachinePowerChanged;
-    }
-
-    private void OnDisable()
-    {
-        btn_Animator.MachinePowerChanged -= HandleMachinePowerChanged;
-    }
-
-    private void Update()
-    {
-        Keyboard keyboard = Keyboard.current;
-        if (keyboard == null) return;
-
-        // Рестарт всего сценария: удерживаем R, нажимаем T
-        if (keyboard.rKey.isPressed && keyboard.tKey.wasPressedThisFrame)
-        {
-            ResetPaperToStart();
-            return;
-        }
-
-        if (isMoving) return;
-        if (!btn_Animator.IsMachinePowered) return;
-        if (!PracticeTasksPopupController.IsPaperAdvanceAllowed()) return;
-
-        // Движение по маршруту: удерживаем N, нажимаем M
-        if (keyboard.nKey.isPressed && keyboard.mKey.wasPressedThisFrame)
-        {
-            TryMoveNext();
-        }
-    }
-
     private void TryMoveNext()
     {
         switch (stage)
@@ -344,9 +356,11 @@ public class PaperPathMover : MonoBehaviour
     }
 
     public bool CanAcceptCutCommand =>
+        btn_Animator.IsMachinePowered &&
         stage == MoveStage.WholePaper &&
         currentPaperIndex == cutWaitPaperPointIndex &&
-        !isMoving;
+        !isMoving &&
+        !IsFinished;
 
     public bool TryApplyCutCommand(float cutSize, out string statusLabel, out string errorMessage)
     {
@@ -413,9 +427,7 @@ public class PaperPathMover : MonoBehaviour
                 return;
             }
 
-            cutter.CanBeCutted = false;
-            BeginSeparatedPartsRoute();
-            TryMoveSecNext();
+            StartCoroutine(FinishCutAndBeginSeparatedRoute());
             return;
         }
 
@@ -423,15 +435,32 @@ public class PaperPathMover : MonoBehaviour
         StartCoroutine(MoveWholePaperToPoint(nextIndex));
     }
 
-    private void BeginSeparatedPartsRoute()
+    private IEnumerator FinishCutAndBeginSeparatedRoute()
     {
+        isMoving = true;
+        cutCommandApplied = false;
+        cutOffsetApplied = false;
+
+        if (cutter != null)
+            cutter.CanBeCutted = false;
+
+        RefreshCutAvailability();
+
+        if (backHolder != null)
+        {
+            yield return MoveBackHolderToInitialPose();
+        }
+
         stage = MoveStage.SecPart;
         currentSecIndex = -1;
         currentMainIndex = -1;
-        cutCommandApplied = false;
-        cutOffsetApplied = false;
+
+        isMoving = false;
         RefreshCutAvailability();
-        Debug.Log("Рез завершён. Дальше двигается только sec");
+
+        Debug.Log("Рез завершён. Задний упор возвращён. Дальше двигается только sec");
+
+        TryMoveSecNext();
     }
 
     private void CancelCutPreparation(bool moveBackToCutPoint)
@@ -464,10 +493,24 @@ public class PaperPathMover : MonoBehaviour
         RefreshCutAvailability();
 
         Transform cutPoint = paperPoints[cutWaitPaperPointIndex];
-        Vector3 endPos = CalculateCutOffsetPosition(selectedVariant);
-        Quaternion endRot = cutPoint.rotation;
+        Vector3 paperEndPos = CalculateCutOffsetPosition(selectedVariant);
+        Quaternion paperEndRot = cutPoint.rotation;
 
-        yield return MovePaperToPose(endPos, endRot);
+        Vector3? holderEndPos = null;
+        Quaternion? holderEndRot = null;
+
+        if (backHolder != null)
+        {
+            holderEndPos = backHolderInitialLocalPosition - new Vector3(0f, 0f, selectedVariant.CutForwardOffset);
+            holderEndRot = backHolderInitialLocalRotation;
+        }
+
+        yield return MovePaperAndBackHolder(
+            paperEndPos,
+            paperEndRot,
+            holderEndPos,
+            holderEndRot
+        );
 
         cutOffsetApplied = true;
         isMoving = false;
@@ -482,11 +525,99 @@ public class PaperPathMover : MonoBehaviour
         RefreshCutAvailability();
 
         Transform cutPoint = paperPoints[cutWaitPaperPointIndex];
-        yield return MovePaperToPose(cutPoint.position, cutPoint.rotation);
+
+        Vector3? holderEndPos = null;
+        Quaternion? holderEndRot = null;
+
+        if (backHolder != null)
+        {
+            holderEndPos = backHolderInitialLocalPosition;
+            holderEndRot = backHolderInitialLocalRotation;
+        }
+
+        yield return MovePaperAndBackHolder(
+            cutPoint.position,
+            cutPoint.rotation,
+            holderEndPos,
+            holderEndRot
+        );
 
         isMoving = false;
         RefreshCutAvailability();
         Debug.Log("Смещение бумаги сброшено");
+    }
+
+    private IEnumerator MoveBackHolderToInitialPose()
+    {
+        Vector3 startPos = backHolder.localPosition;
+        Quaternion startRot = backHolder.localRotation;
+
+        float time = 0f;
+
+        while (time < moveDuration)
+        {
+            time += Time.deltaTime;
+            float t = Mathf.Clamp01(time / moveDuration);
+
+            backHolder.localPosition = Vector3.Lerp(startPos, backHolderInitialLocalPosition, t);
+            backHolder.localRotation = Quaternion.Slerp(startRot, backHolderInitialLocalRotation, t);
+
+            yield return null;
+        }
+
+        backHolder.localPosition = backHolderInitialLocalPosition;
+        backHolder.localRotation = backHolderInitialLocalRotation;
+    }
+
+    private IEnumerator MovePaperAndBackHolder(
+        Vector3 paperEndPos,
+        Quaternion paperEndRot,
+        Vector3? holderEndLocalPos = null,
+        Quaternion? holderEndLocalRot = null)
+    {
+        Vector3 paperStartPos = paper.position;
+        Quaternion paperStartRot = paper.rotation;
+
+        bool moveHolder =
+            backHolder != null &&
+            holderEndLocalPos.HasValue &&
+            holderEndLocalRot.HasValue;
+
+        Vector3 holderStartPos = Vector3.zero;
+        Quaternion holderStartRot = Quaternion.identity;
+
+        if (moveHolder)
+        {
+            holderStartPos = backHolder.localPosition;
+            holderStartRot = backHolder.localRotation;
+        }
+
+        float time = 0f;
+
+        while (time < moveDuration)
+        {
+            time += Time.deltaTime;
+            float t = Mathf.Clamp01(time / moveDuration);
+
+            paper.position = Vector3.Lerp(paperStartPos, paperEndPos, t);
+            paper.rotation = Quaternion.Slerp(paperStartRot, paperEndRot, t);
+
+            if (moveHolder)
+            {
+                backHolder.localPosition = Vector3.Lerp(holderStartPos, holderEndLocalPos.Value, t);
+                backHolder.localRotation = Quaternion.Slerp(holderStartRot, holderEndLocalRot.Value, t);
+            }
+
+            yield return null;
+        }
+
+        paper.SetPositionAndRotation(paperEndPos, paperEndRot);
+
+        if (moveHolder)
+        {
+            backHolder.localPosition = holderEndLocalPos.Value;
+            backHolder.localRotation = holderEndLocalRot.Value;
+        }
     }
 
     private Vector3 CalculateCutOffsetPosition(PaperCutVariant selectedVariant)
@@ -670,6 +801,12 @@ public class PaperPathMover : MonoBehaviour
             isMoving = false;
             cutCommandApplied = false;
             cutOffsetApplied = false;
+
+            if (backHolder != null)
+            {
+                backHolder.localPosition = backHolderInitialLocalPosition;
+                backHolder.localRotation = backHolderInitialLocalRotation;
+            }
         }
 
         RefreshCutAvailability();
@@ -714,6 +851,12 @@ public class PaperPathMover : MonoBehaviour
         if (cutter != null)
         {
             cutter.ResetCutState();
+        }
+
+        if (backHolder != null)
+        {
+            backHolder.localPosition = backHolderInitialLocalPosition;
+            backHolder.localRotation = backHolderInitialLocalRotation;
         }
 
         RefreshCutAvailability();
