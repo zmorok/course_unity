@@ -205,10 +205,17 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (keyboard == null)
             return;
 
-        if (!keyboard.rKey.isPressed || !keyboard.tKey.wasPressedThisFrame)
+        if (!keyboard.rKey.isPressed)
             return;
 
-        ResetPracticeToInitialState();
+        if (keyboard.tKey.wasPressedThisFrame)
+        {
+            ResetPracticeToInitialState();
+            return;
+        }
+
+        if (keyboard.uKey.wasPressedThisFrame)
+            ResetPaperCycleWithoutMachineRestart();
     }
 
     private void OnTransformParentChanged()
@@ -1077,6 +1084,37 @@ public class PracticeTasksPopupController : MonoBehaviour
 
         ResolveInfoPanel();
         infoPanel?.ShowDefault();
+        UpdateButtonStates();
+    }
+
+    private void ResetPaperCycleWithoutMachineRestart()
+    {
+        bool shouldKeepPracticeFlow = IsPracticeFlowActive();
+
+        activeTaskIndex = 0;
+        commandSequenceProgress = 0;
+        cutObservedDuringActiveTask = false;
+        highestUnlockedTask = 1;
+
+        ResolveSceneControllers();
+
+        if (paperMover != null)
+            paperMover.ResetPaperToStart();
+
+        if (cutter != null)
+            cutter.ResetCutState();
+
+        ResolveInfoPanel();
+
+        if (shouldKeepPracticeFlow)
+        {
+            int nextTaskIndex = btn_Animator.IsMachinePowered ? 2 : 1;
+            highestUnlockedTask = Mathf.Clamp(nextTaskIndex, 1, TaskLabels.Length + 1);
+            ActivateTask(nextTaskIndex);
+            return;
+        }
+
+        infoPanel?.ShowInfo("Бумага возвращена в начальную коробку. Станок остаётся включён.");
         UpdateButtonStates();
     }
 

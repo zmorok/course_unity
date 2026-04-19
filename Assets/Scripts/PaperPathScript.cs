@@ -150,6 +150,13 @@ public class PaperPathMover : MonoBehaviour
             return;
         }
 
+        // Новый лист без перезапуска станка: удерживаем R, нажимаем U
+        if (keyboard.rKey.isPressed && keyboard.uKey.wasPressedThisFrame)
+        {
+            ResetPaperToStart();
+            return;
+        }
+
         if (isMoving) return;
         if (!btn_Animator.IsMachinePowered) return;
         if (!PracticeTasksPopupController.IsPaperAdvanceAllowed()) return;

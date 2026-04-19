@@ -35,7 +35,7 @@ public class BottomRecordTableController : MonoBehaviour
 
     [Header("Calculation")]
     [SerializeField] private float sourceSheetLength = 1000f;
-    [SerializeField] private int maxVisibleRows = 8;
+    [SerializeField] private int maxVisibleRows = 12;
     [SerializeField] private string emptyTableMessage = "Записей пока нет";
     [SerializeField] private string invalidValueMessage = "Введите размер реза числом от 1 до 1000 мм.";
 
@@ -221,8 +221,8 @@ public class BottomRecordTableController : MonoBehaviour
         tableContentText.alignment = TextAlignmentOptions.TopLeft;
         tableContentText.textWrappingMode = TextWrappingModes.NoWrap;
         tableContentText.enableAutoSizing = true;
-        tableContentText.fontSizeMax = 19f;
-        tableContentText.fontSizeMin = 14f;
+        tableContentText.fontSizeMax = 20f;
+        tableContentText.fontSizeMin = 16f;
         tableContentText.overflowMode = TextOverflowModes.Overflow;
     }
 
