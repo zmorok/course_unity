@@ -5,6 +5,9 @@ using System.Collections;
 
 public class PaperPathMover : MonoBehaviour
 {
+    public const string InvalidCutSizeMessage =
+        "Размеры бумаги не позволяют выполнить такую резку, попробуйте от 100 до 900мм";
+
     private enum MoveStage
     {
         WholePaper,
@@ -13,10 +16,43 @@ public class PaperPathMover : MonoBehaviour
         Finished
     }
 
+    [Serializable]
+    private sealed class PaperCutVariant
+    {
+        public string Label = "A";
+        public string RootObjectName = "paper_A";
+        public float MinCutSize = 100f;
+        public float MaxCutSize = 300f;
+        public float CutForwardOffset = 0.15f;
+
+        [NonSerialized] public Transform Root;
+        [NonSerialized] public Transform Main;
+        [NonSerialized] public Transform Sec;
+        [NonSerialized] public Vector3 MainInitialLocalPosition;
+        [NonSerialized] public Quaternion MainInitialLocalRotation;
+        [NonSerialized] public Vector3 SecInitialLocalPosition;
+        [NonSerialized] public Quaternion SecInitialLocalRotation;
+
+        public bool IsResolved => Root != null && Main != null && Sec != null;
+
+        public bool Contains(float cutSize)
+        {
+            return cutSize >= MinCutSize && cutSize <= MaxCutSize;
+        }
+    }
+
     [Header("Paper hierarchy")]
     [SerializeField] private Transform paper;
+    [SerializeField] private PaperCutVariant[] cutVariants =
+    {
+        new() { Label = "A", RootObjectName = "paper_A", MinCutSize = 100f, MaxCutSize = 300f, CutForwardOffset = -0.015f },
+        new() { Label = "B", RootObjectName = "paper_B", MinCutSize = 301f, MaxCutSize = 600f, CutForwardOffset = -0.18f },
+        new() { Label = "C", RootObjectName = "paper_C", MinCutSize = 601f, MaxCutSize = 900f, CutForwardOffset = -0.365f }
+    };
+
     private Transform main;
     private Transform sec;
+    private PaperCutVariant activeVariant;
 
     [Header("Path points")]
     [SerializeField] private Transform[] paperPoints; // P_1 ... P_6
@@ -37,15 +73,18 @@ public class PaperPathMover : MonoBehaviour
     private int currentMainIndex;
 
     private bool isMoving;
+    private bool cutCommandApplied;
+    private bool cutOffsetApplied;
 
-    private Vector3 mainInitialLocalPos;
-    private Quaternion mainInitialLocalRot;
-
-    private Vector3 secInitialLocalPos;
-    private Quaternion secInitialLocalRot;
+    private void OnValidate()
+    {
+        EnsureDefaultCutVariants();
+    }
 
     private void Start()
     {
+        EnsureDefaultCutVariants();
+
         if (paper == null)
         {
             Debug.LogError("Не назначен paper");
@@ -53,19 +92,8 @@ public class PaperPathMover : MonoBehaviour
             return;
         }
 
-        main = paper.Find("paper_for_cut/main");
-        sec = paper.Find("paper_for_cut/sec");
-
-        if (main == null)
+        if (!ResolvePaperVariants())
         {
-            Debug.LogError("Не найден main");
-            enabled = false;
-            return;
-        }
-
-        if (sec == null)
-        {
-            Debug.LogError("Не найден sec");
             enabled = false;
             return;
         }
@@ -81,13 +109,158 @@ public class PaperPathMover : MonoBehaviour
             return;
         }
 
-        mainInitialLocalPos = main.localPosition;
-        mainInitialLocalRot = main.localRotation;
-
-        secInitialLocalPos = sec.localPosition;
-        secInitialLocalRot = sec.localRotation;
-
         ResetPaperToStart();
+    }
+
+    private void EnsureDefaultCutVariants()
+    {
+        if (cutVariants != null && cutVariants.Length > 0)
+            return;
+
+        cutVariants = new[]
+        {
+            new PaperCutVariant
+            {
+                Label = "A",
+                RootObjectName = "paper_A",
+                MinCutSize = 100f,
+                MaxCutSize = 300f,
+                CutForwardOffset = 0.15f
+            },
+            new PaperCutVariant
+            {
+                Label = "B",
+                RootObjectName = "paper_B",
+                MinCutSize = 301f,
+                MaxCutSize = 600f,
+                CutForwardOffset = 0.45f
+            },
+            new PaperCutVariant
+            {
+                Label = "C",
+                RootObjectName = "paper_C",
+                MinCutSize = 601f,
+                MaxCutSize = 900f,
+                CutForwardOffset = 0.75f
+            }
+        };
+    }
+
+    private bool ResolvePaperVariants()
+    {
+        if (cutVariants == null || cutVariants.Length == 0)
+        {
+            Debug.LogError("Не настроены варианты бумаги");
+            return false;
+        }
+
+        bool hasResolvedVariant = false;
+
+        for (int i = 0; i < cutVariants.Length; i++)
+        {
+            PaperCutVariant variant = cutVariants[i];
+            if (variant == null)
+                continue;
+
+            variant.Root = paper.Find(variant.RootObjectName);
+            if (variant.Root == null)
+            {
+                Debug.LogError($"Не найден вариант бумаги '{variant.RootObjectName}'");
+                continue;
+            }
+
+            variant.Main = variant.Root.Find("main");
+            variant.Sec = variant.Root.Find("sec");
+
+            if (variant.Main == null || variant.Sec == null)
+            {
+                Debug.LogError($"В '{variant.RootObjectName}' должны быть дочерние объекты main и sec");
+                continue;
+            }
+
+            variant.MainInitialLocalPosition = variant.Main.localPosition;
+            variant.MainInitialLocalRotation = variant.Main.localRotation;
+            variant.SecInitialLocalPosition = variant.Sec.localPosition;
+            variant.SecInitialLocalRotation = variant.Sec.localRotation;
+            hasResolvedVariant = true;
+        }
+
+        if (!hasResolvedVariant)
+            Debug.LogError("Нет ни одного корректного варианта бумаги");
+
+        return hasResolvedVariant;
+    }
+
+    private void RestoreVariantPartTransforms()
+    {
+        if (cutVariants == null)
+            return;
+
+        for (int i = 0; i < cutVariants.Length; i++)
+        {
+            PaperCutVariant variant = cutVariants[i];
+            if (variant == null || !variant.IsResolved)
+                continue;
+
+            variant.Main.localPosition = variant.MainInitialLocalPosition;
+            variant.Main.localRotation = variant.MainInitialLocalRotation;
+            variant.Sec.localPosition = variant.SecInitialLocalPosition;
+            variant.Sec.localRotation = variant.SecInitialLocalRotation;
+        }
+    }
+
+    private void SelectDefaultVariant()
+    {
+        SelectVariant(FindFirstResolvedVariant());
+    }
+
+    private PaperCutVariant FindFirstResolvedVariant()
+    {
+        if (cutVariants == null)
+            return null;
+
+        for (int i = 0; i < cutVariants.Length; i++)
+        {
+            PaperCutVariant variant = cutVariants[i];
+            if (variant != null && variant.IsResolved)
+                return variant;
+        }
+
+        return null;
+    }
+
+    private PaperCutVariant FindVariantForCutSize(float cutSize)
+    {
+        if (cutVariants == null)
+            return null;
+
+        for (int i = 0; i < cutVariants.Length; i++)
+        {
+            PaperCutVariant variant = cutVariants[i];
+            if (variant != null && variant.IsResolved && variant.Contains(cutSize))
+                return variant;
+        }
+
+        return null;
+    }
+
+    private void SelectVariant(PaperCutVariant selectedVariant)
+    {
+        activeVariant = selectedVariant;
+        main = selectedVariant != null ? selectedVariant.Main : null;
+        sec = selectedVariant != null ? selectedVariant.Sec : null;
+
+        if (cutVariants == null)
+            return;
+
+        for (int i = 0; i < cutVariants.Length; i++)
+        {
+            PaperCutVariant variant = cutVariants[i];
+            if (variant == null || variant.Root == null)
+                continue;
+
+            variant.Root.gameObject.SetActive(variant == selectedVariant);
+        }
     }
 
     private void OnEnable()
@@ -170,6 +343,52 @@ public class PaperPathMover : MonoBehaviour
                currentMainIndex != previousMainIndex;
     }
 
+    public bool CanAcceptCutCommand =>
+        stage == MoveStage.WholePaper &&
+        currentPaperIndex == cutWaitPaperPointIndex &&
+        !isMoving;
+
+    public bool TryApplyCutCommand(float cutSize, out string statusLabel, out string errorMessage)
+    {
+        statusLabel = string.Empty;
+        errorMessage = string.Empty;
+
+        if (!CanAcceptCutCommand)
+            return false;
+
+        PaperCutVariant selectedVariant = FindVariantForCutSize(cutSize);
+        if (selectedVariant == null)
+        {
+            CancelCutPreparation(moveBackToCutPoint: true);
+            errorMessage = InvalidCutSizeMessage;
+            return false;
+        }
+
+        SelectVariant(selectedVariant);
+        cutCommandApplied = true;
+        cutOffsetApplied = false;
+        RefreshCutAvailability();
+
+        StartCoroutine(MovePaperToCutOffset(selectedVariant));
+        statusLabel = $"PAPER {selectedVariant.Label}";
+        return true;
+    }
+
+    public bool ClearCutOffsetFromPanel(out string statusLabel)
+    {
+        statusLabel = string.Empty;
+
+        if (!CanAcceptCutCommand)
+            return false;
+
+        if (!cutCommandApplied && !cutOffsetApplied)
+            return false;
+
+        CancelCutPreparation(moveBackToCutPoint: true);
+        statusLabel = "OFFSET CLEAR";
+        return true;
+    }
+
     private void TryMoveWholePaperNext()
     {
         if (currentPaperIndex >= paperPoints.Length - 1)
@@ -209,12 +428,94 @@ public class PaperPathMover : MonoBehaviour
         stage = MoveStage.SecPart;
         currentSecIndex = -1;
         currentMainIndex = -1;
+        cutCommandApplied = false;
+        cutOffsetApplied = false;
         RefreshCutAvailability();
         Debug.Log("Рез завершён. Дальше двигается только sec");
     }
 
+    private void CancelCutPreparation(bool moveBackToCutPoint)
+    {
+        bool hadCutOffset = cutOffsetApplied;
+        cutCommandApplied = false;
+        cutOffsetApplied = false;
+
+        if (cutter != null)
+            cutter.CanBeCutted = false;
+
+        bool shouldMoveBack = moveBackToCutPoint && hadCutOffset;
+        if (!shouldMoveBack || !IsAtCutWaitPoint() || isMoving)
+        {
+            RefreshCutAvailability();
+            return;
+        }
+
+        StartCoroutine(MovePaperToCutWaitPoint());
+    }
+
+    private bool IsAtCutWaitPoint()
+    {
+        return stage == MoveStage.WholePaper && currentPaperIndex == cutWaitPaperPointIndex;
+    }
+
+    private IEnumerator MovePaperToCutOffset(PaperCutVariant selectedVariant)
+    {
+        isMoving = true;
+        RefreshCutAvailability();
+
+        Transform cutPoint = paperPoints[cutWaitPaperPointIndex];
+        Vector3 endPos = CalculateCutOffsetPosition(selectedVariant);
+        Quaternion endRot = cutPoint.rotation;
+
+        yield return MovePaperToPose(endPos, endRot);
+
+        cutOffsetApplied = true;
+        isMoving = false;
+        RefreshCutAvailability();
+
+        Debug.Log($"Выбран тип бумаги {selectedVariant.Label}, бумага смещена к линии реза");
+    }
+
+    private IEnumerator MovePaperToCutWaitPoint()
+    {
+        isMoving = true;
+        RefreshCutAvailability();
+
+        Transform cutPoint = paperPoints[cutWaitPaperPointIndex];
+        yield return MovePaperToPose(cutPoint.position, cutPoint.rotation);
+
+        isMoving = false;
+        RefreshCutAvailability();
+        Debug.Log("Смещение бумаги сброшено");
+    }
+
+    private Vector3 CalculateCutOffsetPosition(PaperCutVariant selectedVariant)
+    {
+        Transform cutPoint = paperPoints[cutWaitPaperPointIndex];
+        Vector3 direction = GetCutFeedDirection();
+        float offset = selectedVariant != null ? selectedVariant.CutForwardOffset : 0f;
+        return cutPoint.position + direction * offset;
+    }
+
+    private Vector3 GetCutFeedDirection()
+    {
+        if (cutWaitPaperPointIndex > 0 && cutWaitPaperPointIndex < paperPoints.Length)
+        {
+            Vector3 direction = paperPoints[cutWaitPaperPointIndex].position -
+                                paperPoints[cutWaitPaperPointIndex - 1].position;
+
+            if (direction.sqrMagnitude > 0.0001f)
+                return direction.normalized;
+        }
+
+        return paperPoints[cutWaitPaperPointIndex].forward;
+    }
+
     private void TryMoveSecNext()
     {
+        if (sec == null)
+            return;
+
         int nextIndex = currentSecIndex + 1;
 
         if (nextIndex >= secPoints.Length)
@@ -238,6 +539,9 @@ public class PaperPathMover : MonoBehaviour
 
     private void TryMoveMainNext()
     {
+        if (main == null)
+            return;
+
         int nextIndex = currentMainIndex + 1;
 
         if (nextIndex >= mainPoints.Length)
@@ -262,12 +566,33 @@ public class PaperPathMover : MonoBehaviour
     private IEnumerator MoveWholePaperToPoint(int targetIndex)
     {
         isMoving = true;
-
-        Vector3 startPos = paper.position;
-        Quaternion startRot = paper.rotation;
+        cutCommandApplied = false;
+        cutOffsetApplied = false;
+        RefreshCutAvailability();
 
         Vector3 endPos = paperPoints[targetIndex].position;
         Quaternion endRot = paperPoints[targetIndex].rotation;
+
+        yield return MovePaperToPose(endPos, endRot);
+
+        currentPaperIndex = targetIndex;
+        isMoving = false;
+
+        Debug.Log($"Весь лист перемещён в paper P_{currentPaperIndex + 1}");
+
+        if (currentPaperIndex >= paperPoints.Length - 1)
+        {
+            stage = MoveStage.SecPart;
+            Debug.Log("Дальше будет двигаться только sec");
+        }
+
+        RefreshCutAvailability();
+    }
+
+    private IEnumerator MovePaperToPose(Vector3 endPos, Quaternion endRot)
+    {
+        Vector3 startPos = paper.position;
+        Quaternion startRot = paper.rotation;
 
         float time = 0f;
 
@@ -283,18 +608,6 @@ public class PaperPathMover : MonoBehaviour
         }
 
         paper.SetPositionAndRotation(endPos, endRot);
-        currentPaperIndex = targetIndex;
-        isMoving = false;
-
-        Debug.Log($"Весь лист перемещён в paper P_{currentPaperIndex + 1}");
-
-        if (currentPaperIndex >= paperPoints.Length - 1)
-        {
-            stage = MoveStage.SecPart;
-            Debug.Log("Дальше будет двигаться только sec");
-        }
-
-        RefreshCutAvailability();
     }
 
     private IEnumerator MoveTransformToPoint(Transform target, Transform point, Action onComplete)
@@ -355,6 +668,8 @@ public class PaperPathMover : MonoBehaviour
         {
             StopAllCoroutines();
             isMoving = false;
+            cutCommandApplied = false;
+            cutOffsetApplied = false;
         }
 
         RefreshCutAvailability();
@@ -369,7 +684,10 @@ public class PaperPathMover : MonoBehaviour
             btn_Animator.IsMachinePowered &&
             !isMoving &&
             stage == MoveStage.WholePaper &&
-            currentPaperIndex == cutWaitPaperPointIndex;
+            currentPaperIndex == cutWaitPaperPointIndex &&
+            cutCommandApplied &&
+            cutOffsetApplied &&
+            activeVariant != null;
 
         cutter.CanBeCutted = canCutNow;
     }
@@ -385,14 +703,13 @@ public class PaperPathMover : MonoBehaviour
         currentMainIndex = -1;
 
         stage = MoveStage.WholePaper;
+        cutCommandApplied = false;
+        cutOffsetApplied = false;
 
         paper.SetPositionAndRotation(paperPoints[0].position, paperPoints[0].rotation);
 
-        main.localPosition = mainInitialLocalPos;
-        main.localRotation = mainInitialLocalRot;
-
-        sec.localPosition = secInitialLocalPos;
-        sec.localRotation = secInitialLocalRot;
+        RestoreVariantPartTransforms();
+        SelectDefaultVariant();
 
         if (cutter != null)
         {
@@ -418,4 +735,6 @@ public class PaperPathMover : MonoBehaviour
     public int CurrentSecPointIndex => currentSecIndex;
     public int CurrentMainPointIndex => currentMainIndex;
     public int CutWaitPaperPointIndex => cutWaitPaperPointIndex;
+    public bool IsCutOffsetApplied => cutOffsetApplied;
+    public string ActivePaperVariantLabel => activeVariant != null ? activeVariant.Label : string.Empty;
 }

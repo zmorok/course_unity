@@ -34,6 +34,11 @@ public class ControlPanelScreenDisplay : MonoBehaviour
     [SerializeField] private float greenIndicatorEmission = 2.5f;
     [SerializeField] private float redIndicatorEmission = 3.5f;
 
+    [Header("Paper Cut Command")]
+    [SerializeField] private PaperPathMover paperMover;
+    [SerializeField] private BottomInfoPanel infoPanel;
+    [SerializeField] private string invalidPaperCutMessage = PaperPathMover.InvalidCutSizeMessage;
+
     private TextMeshPro displayText;
     private Renderer[] greenIndicatorRenderers;
     private Renderer[] redIndicatorRenderers;
@@ -107,6 +112,7 @@ public class ControlPanelScreenDisplay : MonoBehaviour
                 break;
             case ControlPanelButton.Clear:
                 ResetState(true);
+                TryClearPaperCutOffset();
                 break;
             case ControlPanelButton.Program:
                 ToggleProgramMode();
@@ -239,8 +245,62 @@ public class ControlPanelScreenDisplay : MonoBehaviour
             return;
         }
 
+        if (TryHandlePaperCutCommand())
+            return;
+
         ShowStatus("ENTER");
         RefreshDisplay();
+    }
+
+    private bool TryHandlePaperCutCommand()
+    {
+        ResolvePaperMover();
+
+        if (paperMover == null || !paperMover.CanAcceptCutCommand)
+            return false;
+
+        if (!TryParseCurrentInput(out double cutSize))
+        {
+            ShowPaperCutError(invalidPaperCutMessage);
+            return true;
+        }
+
+        if (paperMover.TryApplyCutCommand((float)cutSize, out string statusLabel, out string errorMessage))
+        {
+            storedOperand = null;
+            pendingOperation = PendingOperation.None;
+            expressionLine = $"CUT {FormatNumber(cutSize)} MM";
+            startNewInput = true;
+            hasError = false;
+            ShowStatus(statusLabel);
+            ShowBottomInfo($"Выбран тип бумаги {paperMover.ActivePaperVariantLabel}. Бумага смещается к линии реза.");
+            RefreshDisplay();
+            return true;
+        }
+
+        ShowPaperCutError(string.IsNullOrWhiteSpace(errorMessage) ? invalidPaperCutMessage : errorMessage);
+        return true;
+    }
+
+    private void TryClearPaperCutOffset()
+    {
+        ResolvePaperMover();
+
+        if (paperMover == null)
+            return;
+
+        if (!paperMover.ClearCutOffsetFromPanel(out string statusLabel))
+            return;
+
+        ShowStatus(statusLabel);
+        ShowBottomInfo("Смещение бумаги сброшено. Введите размер реза от 100 до 900мм и нажмите Enter.");
+        RefreshDisplay();
+    }
+
+    private void ShowPaperCutError(string message)
+    {
+        SetError("Error");
+        ShowBottomInfo(message);
     }
 
     private void DeleteLastCharacter()
@@ -527,6 +587,24 @@ public class ControlPanelScreenDisplay : MonoBehaviour
     {
         greenIndicatorRenderers ??= FindIndicatorRenderers(greenIndicatorObjectName);
         redIndicatorRenderers ??= FindIndicatorRenderers(redIndicatorObjectName);
+    }
+
+    private void ResolvePaperMover()
+    {
+        if (paperMover == null)
+            paperMover = Object.FindFirstObjectByType<PaperPathMover>();
+    }
+
+    private void ResolveInfoPanel()
+    {
+        if (infoPanel == null)
+            infoPanel = Object.FindFirstObjectByType<BottomInfoPanel>();
+    }
+
+    private void ShowBottomInfo(string message)
+    {
+        ResolveInfoPanel();
+        infoPanel?.ShowInfo(message);
     }
 
     private Renderer[] FindIndicatorRenderers(string objectName)
