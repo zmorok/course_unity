@@ -9,30 +9,35 @@ public class BottomRecordTableController : MonoBehaviour
 {
     private readonly struct TableEntry
     {
-        public TableEntry(string rawValue, bool hasNumericValue, float mainValue, float secValue, float efficiencyPercent)
+        public TableEntry(
+            float cutSize,
+            float usefulPartSize,
+            float wasteSize,
+            float usagePercent)
         {
-            RawValue = rawValue;
-            HasNumericValue = hasNumericValue;
-            MainValue = mainValue;
-            SecValue = secValue;
-            EfficiencyPercent = efficiencyPercent;
+            CutSize = cutSize;
+            UsefulPartSize = usefulPartSize;
+            WasteSize = wasteSize;
+            UsagePercent = usagePercent;
         }
 
-        public string RawValue { get; }
-        public bool HasNumericValue { get; }
-        public float MainValue { get; }
-        public float SecValue { get; }
-        public float EfficiencyPercent { get; }
+        public float CutSize { get; }
+        public float UsefulPartSize { get; }
+        public float WasteSize { get; }
+        public float UsagePercent { get; }
     }
 
     [Header("UI")]
     [SerializeField] private TMP_InputField valueInputField;
     [SerializeField] private GameObject tablePanel;
     [SerializeField] private TextMeshProUGUI tableContentText;
+    [SerializeField] private BottomInfoPanel infoPanel;
 
     [Header("Calculation")]
     [SerializeField] private float sourceSheetLength = 1000f;
-    [SerializeField] private int maxVisibleRows = 12;
+    [SerializeField] private int maxVisibleRows = 8;
+    [SerializeField] private string emptyTableMessage = "Записей пока нет";
+    [SerializeField] private string invalidValueMessage = "Введите размер реза числом от 1 до 1000 мм.";
 
     private readonly List<TableEntry> entries = new();
 
@@ -55,9 +60,21 @@ public class BottomRecordTableController : MonoBehaviour
 
         string rawValue = valueInputField.text?.Trim();
         if (string.IsNullOrWhiteSpace(rawValue))
+        {
+            ShowValidationError("Введите размер реза в миллиметрах.");
+            valueInputField.ActivateInputField();
+            valueInputField.text = string.Empty;
             return;
+        }
 
-        TableEntry entry = BuildEntry(rawValue);
+        if (!TryBuildEntry(rawValue, out TableEntry entry, out string errorMessage))
+        {
+            ShowValidationError(errorMessage);
+            valueInputField.ActivateInputField();
+            valueInputField.text = string.Empty;
+            return;
+        }
+
         entries.Add(entry);
 
         valueInputField.text = string.Empty;
@@ -84,17 +101,43 @@ public class BottomRecordTableController : MonoBehaviour
         RefreshTableView();
     }
 
-    private TableEntry BuildEntry(string rawValue)
+    private bool TryBuildEntry(string rawValue, out TableEntry entry, out string errorMessage)
     {
+        entry = default;
+        errorMessage = string.Empty;
+
         if (!TryParseNumericValue(rawValue, out float numericValue))
-            return new TableEntry(rawValue, false, 0f, 0f, 0f);
+        {
+            errorMessage = "Значение должно быть числом в миллиметрах.";
+            return false;
+        }
 
-        float clampedMain = Mathf.Max(0f, numericValue);
+        if (float.IsNaN(numericValue) || float.IsInfinity(numericValue))
+        {
+            errorMessage = "Значение должно быть обычным числом в миллиметрах.";
+            return false;
+        }
+
+        if (numericValue <= 0f)
+        {
+            errorMessage = "Размер реза должен быть больше 0 мм.";
+            return false;
+        }
+
+        if (numericValue > sourceSheetLength)
+        {
+            errorMessage = $"Размер реза не может быть больше длины листа {FormatNumber(sourceSheetLength)} мм.";
+            return false;
+        }
+
+        float cutSize = numericValue;
         float clampedSourceLength = Mathf.Max(1f, sourceSheetLength);
-        float secValue = Mathf.Max(0f, clampedSourceLength - clampedMain);
-        float efficiencyPercent = Mathf.Clamp01(clampedMain / clampedSourceLength) * 100f;
+        float usefulPartSize = Mathf.Max(0f, clampedSourceLength - cutSize);
+        float wasteSize = Mathf.Min(cutSize, clampedSourceLength);
+        float usagePercent = Mathf.Clamp01(usefulPartSize / clampedSourceLength) * 100f;
 
-        return new TableEntry(rawValue, true, clampedMain, secValue, efficiencyPercent);
+        entry = new TableEntry(cutSize, usefulPartSize, wasteSize, usagePercent);
+        return true;
     }
 
     private bool TryParseNumericValue(string rawValue, out float numericValue)
@@ -111,6 +154,21 @@ public class BottomRecordTableController : MonoBehaviour
             out numericValue);
     }
 
+    private void ShowValidationError(string message)
+    {
+        ResolveInfoPanel();
+        infoPanel?.ShowInfo(string.IsNullOrWhiteSpace(message) ? invalidValueMessage : message);
+    }
+
+    private void ResolveInfoPanel()
+    {
+        if (infoPanel == null)
+            infoPanel = GetComponent<BottomInfoPanel>();
+
+        if (infoPanel == null)
+            infoPanel = Object.FindFirstObjectByType<BottomInfoPanel>();
+    }
+
     private void RefreshTableView()
     {
         if (tableContentText == null)
@@ -122,15 +180,17 @@ public class BottomRecordTableController : MonoBehaviour
     private string BuildTableContent()
     {
         StringBuilder builder = new();
-        builder.AppendLine("<size=115%><b>Таблица записей</b></size>");
-        builder.AppendLine("Формулы: sec = ввод, main = max(1000 - sec, 0), исп. = main / 1000 * 100%");
+        builder.AppendLine("<size=115%><b>Журнал резки бумаги</b></size>");
+        builder.AppendLine($"Исходный лист: {FormatNumber(sourceSheetLength)} мм. Вводимое значение — размер отрезаемого отхода.");
         builder.AppendLine();
-        builder.AppendLine("<mspace=12px><b>№  | Ввод       |      sec |     main | Исп., %</b></mspace>");
-        builder.AppendLine("<mspace=12px>---+------------+----------+----------+--------</mspace>");
+        builder.AppendLine("<mspace=10px><b> № | Рез, мм | Готовая часть, мм | Отход, мм | Использование, %</b></mspace>");
+        builder.AppendLine("<mspace=10px>---+---------+-------------------+-----------+------------------</mspace>");
 
         if (entries.Count == 0)
         {
-            builder.Append("<mspace=12px>   Нет записей</mspace>");
+            builder.Append("<mspace=10px>  ");
+            builder.Append(emptyTableMessage);
+            builder.Append("</mspace>");
             return builder.ToString();
         }
 
@@ -138,20 +198,15 @@ public class BottomRecordTableController : MonoBehaviour
         for (int i = startIndex; i < entries.Count; i++)
         {
             TableEntry entry = entries[i];
-            string inputColumn = FitToColumn(entry.RawValue, 10);
-            string mainColumn = entry.HasNumericValue ? FitToColumn(FormatNumber(entry.MainValue), 8) : "   -    ";
-            string secColumn = entry.HasNumericValue ? FitToColumn(FormatNumber(entry.SecValue), 8) : "   -    ";
-            string efficiencyColumn = entry.HasNumericValue ? FitToColumn(FormatNumber(entry.EfficiencyPercent), 6) : "  -   ";
-
-            builder.Append("<mspace=12px>");
+            builder.Append("<mspace=10px>");
             builder.AppendFormat(
                 CultureInfo.InvariantCulture,
-                "{0,2} | {1,-10} | {2,8} | {3,8} | {4,6}",
+                "{0,2} | {1,7} | {2,17} | {3,9} | {4,16}",
                 i + 1,
-                inputColumn,
-                mainColumn,
-                secColumn,
-                efficiencyColumn);
+                FitToColumn(FormatNumber(entry.CutSize), 7),
+                FitToColumn(FormatNumber(entry.UsefulPartSize), 16),
+                FitToColumn(FormatNumber(entry.WasteSize), 9),
+                FitToColumn($"{FormatNumber(entry.UsagePercent)} %", 11));
             builder.AppendLine("</mspace>");
         }
 
@@ -166,8 +221,8 @@ public class BottomRecordTableController : MonoBehaviour
         tableContentText.alignment = TextAlignmentOptions.TopLeft;
         tableContentText.textWrappingMode = TextWrappingModes.NoWrap;
         tableContentText.enableAutoSizing = true;
-        tableContentText.fontSizeMax = 20f;
-        tableContentText.fontSizeMin = 18f;
+        tableContentText.fontSizeMax = 19f;
+        tableContentText.fontSizeMin = 14f;
         tableContentText.overflowMode = TextOverflowModes.Overflow;
     }
 
