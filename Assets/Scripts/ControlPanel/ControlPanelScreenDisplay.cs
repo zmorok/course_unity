@@ -273,7 +273,11 @@ public class ControlPanelScreenDisplay : MonoBehaviour
             startNewInput = true;
             hasError = false;
             ShowStatus(statusLabel);
-            ShowBottomInfo($"Выбран тип бумаги {paperMover.ActivePaperVariantLabel}. Бумага смещается к линии реза.");
+            PracticeTasksPopupController.NotifyCutCommandAcceptedFromPanel((float)cutSize);
+
+            if (!PracticeTasksPopupController.IsPracticeFlowRunning())
+                ShowBottomInfo($"Выбран тип бумаги {paperMover.ActivePaperVariantLabel}. Бумага смещается к линии реза.");
+
             RefreshDisplay();
             return true;
         }

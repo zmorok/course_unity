@@ -905,6 +905,21 @@ public class PracticeTasksPopupController : MonoBehaviour
         return activeInstance.IsCutStartAllowedInternal();
     }
 
+    public static bool IsPracticeFlowRunning()
+    {
+        return Application.isPlaying &&
+               activeInstance != null &&
+               activeInstance.IsPracticeFlowActive();
+    }
+
+    public static void NotifyCutCommandAcceptedFromPanel(float cutSize)
+    {
+        if (!Application.isPlaying || activeInstance == null)
+            return;
+
+        activeInstance.HandleCutCommandAcceptedFromPanel(cutSize);
+    }
+
     private void HandlePanelButtonPressed(ControlPanelButton button)
     {
         if (!Application.isPlaying || activeTaskIndex != 4)
@@ -939,6 +954,52 @@ public class PracticeTasksPopupController : MonoBehaviour
         ShowTaskInstruction(
             activeTaskIndex,
             "Команда введена неверно. Начните заново: 1, 0, 0, Enter.");
+    }
+
+    private void HandleCutCommandAcceptedFromPanel(float cutSize)
+    {
+        if (activeTaskIndex != 4)
+            return;
+
+        if (requiredCommandSequence == null || requiredCommandSequence.Length == 0)
+            return;
+
+        if (!TryGetRequiredCutSize(out int requiredCutSize) ||
+            !Mathf.Approximately(cutSize, requiredCutSize))
+        {
+            commandSequenceProgress = 0;
+            ShowTaskInstruction(
+                activeTaskIndex,
+                "Команда введена неверно. Начните заново: 1, 0, 0, Enter.");
+            return;
+        }
+
+        commandSequenceProgress = requiredCommandSequence.Length;
+        TryCompleteActiveTaskFromState();
+    }
+
+    private bool TryGetRequiredCutSize(out int cutSize)
+    {
+        cutSize = 0;
+
+        if (requiredCommandSequence == null || requiredCommandSequence.Length == 0)
+            return false;
+
+        bool hasDigits = false;
+        for (int i = 0; i < requiredCommandSequence.Length; i++)
+        {
+            ControlPanelButton button = requiredCommandSequence[i];
+            if (button == ControlPanelButton.Enter)
+                break;
+
+            if (!ControlPanelInputLayout.TryGetDigit(button, out char digit))
+                return false;
+
+            hasDigits = true;
+            cutSize = cutSize * 10 + digit - '0';
+        }
+
+        return hasDigits;
     }
 
     private void HandleMachinePowerChanged(bool isPowered)
