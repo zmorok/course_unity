@@ -1,54 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine.InputSystem;
 
-public enum ControlPanelButton
-{
-    Digit0,
-    Digit1,
-    Digit2,
-    Digit3,
-    Digit4,
-    Digit5,
-    Digit6,
-    Digit7,
-    Digit8,
-    Digit9,
-    ArrowUp,
-    ArrowDown,
-    ArrowLeft,
-    ArrowRight,
-    Center,
-    Delete,
-    Enter,
-    Clear,
-    Program,
-    Dot,
-    Div,
-    Mult,
-    Minus,
-    Plus,
-    Eq,
-    DualStart,
-    PowerSwitch,
-    EmergencyStop
-}
-
-public readonly struct ControlPanelBinding
-{
-    public ControlPanelBinding(Key key, ControlPanelButton button, bool requiresShift)
-    {
-        Key = key;
-        Button = button;
-        RequiresShift = requiresShift;
-    }
-
-    public Key Key { get; }
-    public ControlPanelButton Button { get; }
-    public bool RequiresShift { get; }
-}
-
+// основное отображение физических кнопок на логические кнопки панели управления
 public static class ControlPanelInputLayout
 {
+    // нужно, чтобы ButtonAnimator не хранил раскладку внутри себя и мог только исполнять готовые привязки
     private static readonly ControlPanelBinding[] bindings =
     {
         new(Key.Digit0, ControlPanelButton.Digit0, false),
@@ -81,8 +37,10 @@ public static class ControlPanelInputLayout
         new(Key.X, ControlPanelButton.EmergencyStop, false)
     };
 
+    // регистрация всех доступных сочетаний клавиш при запуске симулятора
     public static IReadOnlyList<ControlPanelBinding> Bindings => bindings;
 
+    // связывание логической кнопки с объектами сцены, то есть 3D-кнопками на панели управления
     public static IReadOnlyList<string> GetObjectNames(ControlPanelButton button)
     {
         return button switch
@@ -119,14 +77,13 @@ public static class ControlPanelInputLayout
         };
     }
 
+    // отделяет кнопки с разовой анимацией от обычных удерживаемых кнопок с параметром isPressed
     public static bool UsesOneShotClip(ControlPanelButton button)
     {
-        return button is
-            ControlPanelButton.DualStart or
-            ControlPanelButton.PowerSwitch or
-            ControlPanelButton.EmergencyStop;
+        return button is ControlPanelButton.DualStart or ControlPanelButton.PowerSwitch or ControlPanelButton.EmergencyStop;
     }
 
+    // отображение на дисплее чисел
     public static bool TryGetDigit(ControlPanelButton button, out char digit)
     {
         switch (button)
@@ -141,12 +98,11 @@ public static class ControlPanelInputLayout
             case ControlPanelButton.Digit7: digit = '7'; return true;
             case ControlPanelButton.Digit8: digit = '8'; return true;
             case ControlPanelButton.Digit9: digit = '9'; return true;
-            default:
-                digit = default;
-                return false;
+            default: digit = default; return false;
         }
     }
 
+    // перевод логической кнопки с математической операцией в соответствующий оператор
     public static bool TryGetOperatorSymbol(ControlPanelButton button, out string symbol)
     {
         switch (button)
@@ -155,16 +111,14 @@ public static class ControlPanelInputLayout
             case ControlPanelButton.Minus: symbol = "-"; return true;
             case ControlPanelButton.Mult: symbol = "*"; return true;
             case ControlPanelButton.Div: symbol = "/"; return true;
-            default:
-                symbol = string.Empty;
-                return false;
+            default: symbol = string.Empty; return false;
         }
     }
 
+    // отображение на дисплее статусов команд
     public static string GetLabel(ControlPanelButton button)
     {
-        if (TryGetDigit(button, out char digit))
-            return digit.ToString();
+        if (TryGetDigit(button, out char digit)) return digit.ToString();
 
         return button switch
         {
