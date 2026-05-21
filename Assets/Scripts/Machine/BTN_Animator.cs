@@ -623,9 +623,7 @@ public class btn_Animator : MonoBehaviour
 
     private void StopMachineLoopAudioImmediate()
     {
-        if (machineAudioSource == null)
-            return;
-
+        if (machineAudioSource == null) return;
         machineAudioSource.volume = 0f;
         machineAudioSource.Stop();
     }
