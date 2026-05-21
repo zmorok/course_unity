@@ -143,14 +143,14 @@ public class PaperPathMover : MonoBehaviour
         Keyboard keyboard = Keyboard.current;
         if (keyboard == null) return;
 
-        // Рестарт всего сценария: удерживаем R, нажимаем T
+        // рестарт всего сценария: R + T
         if (keyboard.rKey.isPressed && keyboard.tKey.wasPressedThisFrame)
         {
             ResetPaperToStart();
             return;
         }
 
-        // Новый лист без перезапуска станка: удерживаем R, нажимаем U
+        // новый лист без перезапуска станка: R + U
         if (keyboard.rKey.isPressed && keyboard.uKey.wasPressedThisFrame)
         {
             ResetPaperToStart();
@@ -161,7 +161,7 @@ public class PaperPathMover : MonoBehaviour
         if (!ButtonAnimator.IsMachinePowered) return;
         if (!PracticeTasksPopupController.IsPaperAdvanceAllowed()) return;
 
-        // Движение по маршруту: удерживаем N, нажимаем M
+        // движение по маршруту: N + M
         if (keyboard.nKey.isPressed && keyboard.mKey.wasPressedThisFrame)
         {
             TryMoveNext();
@@ -367,6 +367,7 @@ public class PaperPathMover : MonoBehaviour
     }
 
     public bool CanAcceptCutCommand =>
+        // команда реза принимается только в точке P_5, чтобы панель не могла сместить бумагу вне зоны ножа
         ButtonAnimator.IsMachinePowered &&
         stage == MoveStage.WholePaper &&
         currentPaperIndex == cutWaitPaperPointIndex &&
@@ -385,6 +386,7 @@ public class PaperPathMover : MonoBehaviour
         PaperCutVariant selectedVariant = FindVariantForCutSize(cutSize);
         if (selectedVariant == null)
         {
+            // неверный размер отменяет подготовку, чтобы бумага не осталась в промежуточном смещённом состоянии
             CancelCutPreparation(moveBackToCutPoint: true);
             errorMessage = InvalidCutSizeMessage;
             return false;
@@ -426,7 +428,7 @@ public class PaperPathMover : MonoBehaviour
             return;
         }
 
-        // Если стоим на P_5 и хотим идти дальше, сначала нужен рез
+        // после P_5 нельзя продолжать маршрут целым листом: сначала нож должен завершить рез
         if (currentPaperIndex == cutWaitPaperPointIndex)
         {
             if (cutter == null)
@@ -447,6 +449,7 @@ public class PaperPathMover : MonoBehaviour
 
         if (currentPaperIndex == 0 && paperPoints.Length > 3)
         {
+            // первый шаг имитирует взятие листа из коробки и перенос сразу до рабочего стола
             StartCoroutine(MoveWholePaperThroughInitialPickupTrajectory());
             return;
         }
@@ -469,6 +472,7 @@ public class PaperPathMover : MonoBehaviour
 
         if (backHolder != null && !backHolderReturnedAfterCut)
         {
+            // задний упор возвращается перед движением sec/main, иначе части бумаги визуально расходятся из неверной позиции
             yield return MoveBackHolderToInitialPose();
             backHolderReturnedAfterCut = true;
         }
@@ -496,6 +500,7 @@ public class PaperPathMover : MonoBehaviour
         if (cutter != null)
             cutter.CanBeCutted = false;
 
+        // откатываем бумагу назад только если она реально была смещена к линии реза
         bool shouldMoveBack = moveBackToCutPoint && hadCutOffset;
         if (!shouldMoveBack || !IsAtCutWaitPoint() || isMoving)
         {
@@ -527,6 +532,7 @@ public class PaperPathMover : MonoBehaviour
 
         if (backHolder != null)
         {
+            // упор двигается вместе с бумагой, чтобы расстояние реза визуально соответствовало выбранному размеру
             holderEndPos = backHolderInitialLocalPosition - new Vector3(0f, 0f, selectedVariant.CutForwardOffset);
             holderEndRot = backHolderInitialLocalRotation;
         }
@@ -547,6 +553,7 @@ public class PaperPathMover : MonoBehaviour
 
     private void HandleCutCompletedAfterLift()
     {
+        // событие реза слушается только в P_5, чтобы случайное завершение анимации не меняло маршрут в другой фазе
         if (!IsAtCutWaitPoint())
             return;
 
@@ -712,6 +719,7 @@ public class PaperPathMover : MonoBehaviour
 
     private void TryMoveSecNext()
     {
+        // после реза сначала уходит отрезанный отход sec, затем готовая часть main
         if (sec == null)
             return;
 
@@ -738,6 +746,7 @@ public class PaperPathMover : MonoBehaviour
 
     private void TryMoveMainNext()
     {
+        // main стартует только после завершения маршрута sec, чтобы части не двигались одновременно
         if (main == null)
             return;
 
@@ -883,6 +892,7 @@ public class PaperPathMover : MonoBehaviour
     {
         if (!isPowered)
         {
+            // выключение станка останавливает любые корутины, чтобы сценарий не продолжался без питания
             StopAllCoroutines();
             isMoving = false;
             cutCommandApplied = false;
@@ -905,6 +915,7 @@ public class PaperPathMover : MonoBehaviour
         if (cutter == null)
             return;
 
+        // нож разрешён только после команды с панели и фактического смещения бумаги к линии реза
         bool canCutNow =
             ButtonAnimator.IsMachinePowered &&
             !isMoving &&
@@ -920,6 +931,7 @@ public class PaperPathMover : MonoBehaviour
 
     public void ResetPaperToStart()
     {
+        // общий сброс используется и горячими клавишами, и практикой, поэтому возвращает все связанные состояния
         StopAllCoroutines();
 
         isMoving = false;

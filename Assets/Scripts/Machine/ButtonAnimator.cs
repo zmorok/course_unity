@@ -89,6 +89,7 @@ public class ButtonAnimator : MonoBehaviour
 
     private void Awake()
     {
+        // один владелец ввода нужен, чтобы несколько ButtonAnimator на кнопках префаба не дублировали нажатия
         if (inputOwner != null && inputOwner != this)
         {
             enabled = false;
@@ -127,6 +128,7 @@ public class ButtonAnimator : MonoBehaviour
     {
         if (inputOwner != this || keyboard == null) return;
 
+        // Z включает режим работы с панелью, а Shift переключает второй слой символов вроде +, /, =
         bool zPressed = keyboard.zKey.isPressed;
         bool shiftPressed = keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
 
@@ -153,6 +155,7 @@ public class ButtonAnimator : MonoBehaviour
 
     private bool TryHandleUiToggleShortcut()
     {
+        // скрытие UI оставлено на Z+U, чтобы можно было смотреть на 3D-панель без интерфейсных подсказок
         if (uiToggleKey == Key.None || !keyboard[uiToggleKey].wasPressedThisFrame)
             return false;
 
@@ -227,6 +230,7 @@ public class ButtonAnimator : MonoBehaviour
 
     private void RegisterButtons()
     {
+        // здесь только поиск 3D-кнопок и их Animator, а раскладка в ControlPanelInputLayout 
         foreach (ControlPanelBinding binding in ControlPanelInputLayout.Bindings)
         {
             Dictionary<Key, ButtonAnimatorBinding> map = binding.RequiresShift ? zShiftMap : zOnlyMap;
@@ -293,6 +297,7 @@ public class ButtonAnimator : MonoBehaviour
                 if (!CanHandleButton(binding.Button))
                     continue;
 
+                // порядок важен: сначала визуально нажимаем кнопку, потом звук/спецдействие, затем событие для остальных систем
                 PressBinding(binding);
                 PlayButtonSound();
                 HandleSpecialButtons(binding.Button);
@@ -383,6 +388,7 @@ public class ButtonAnimator : MonoBehaviour
 
     private void HandleSpecialButtons(ControlPanelButton button)
     {
+        // питание меняется здесь, потому что именно кнопки панели являются источником состояния станка
         if (button == ControlPanelButton.PowerSwitch)
         {
             SetMachinePowered(!machinePowered, notifyListeners: true);
@@ -410,6 +416,7 @@ public class ButtonAnimator : MonoBehaviour
 
     public static bool TrySimulateButtonPress(ControlPanelButton button)
     {
+        // используется практикой для аккуратного выключения станка тем же путём, что и реальное нажатие кнопки
         return inputOwner != null && inputOwner.TrySimulateButtonPressInternal(button);
     }
 
@@ -437,6 +444,7 @@ public class ButtonAnimator : MonoBehaviour
         else
             StopMachineLoopAudio();
 
+        // при выключении все удерживаемые кнопки отпускаются, чтобы анимации не зависли в нажатом состоянии
         if (changed && !machinePowered)
             ResetAllButtons();
 
@@ -516,6 +524,7 @@ public class ButtonAnimator : MonoBehaviour
         if (animator == null)
             return;
 
+        // one-shot кнопки должны стоять на первом кадре и проигрываться только при нажатии, а не циклом
         animator.enabled = true;
         animator.SetLayerWeight(0, 1f);
         animator.speed = 0f;
