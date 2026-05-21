@@ -3,11 +3,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
-#if UNITY_EDITOR
-using UnityEditor.SceneManagement;
-#endif
 
-[ExecuteAlways]
 [RequireComponent(typeof(Button))]
 public class PracticeTasksPopupController : MonoBehaviour
 {
@@ -74,9 +70,6 @@ public class PracticeTasksPopupController : MonoBehaviour
     private LayoutElementState practiceLayoutState;
     private float normalDropdownButtonHeight;
     private readonly Dictionary<GameObject, bool> practiceModeActiveStates = new();
-#if UNITY_EDITOR
-    private bool validateLayoutQueued;
-#endif
 
     private struct RectTransformState
     {
@@ -119,8 +112,13 @@ public class PracticeTasksPopupController : MonoBehaviour
         public int LayoutPriority;
     }
 
+    // === Unity lifecycle ===
+
     private void OnEnable()
     {
+        if (!Application.isPlaying)
+            return;
+
         // нужно, чтобы статические проверки из Machine и ControlPanel всегда обращались к текущему контроллеру практики
         activeInstance = this;
         practiceButton = GetComponent<Button>();
@@ -150,9 +148,6 @@ public class PracticeTasksPopupController : MonoBehaviour
 
         EnsureDropdown();
 
-        if (!Application.isPlaying && dropdownRect != null)
-            dropdownRect.gameObject.SetActive(false);
-
         SubscribeRuntimeEvents();
         UpdateButtonStates();
         RefreshLayout();
@@ -160,19 +155,11 @@ public class PracticeTasksPopupController : MonoBehaviour
 
     private void OnDisable()
     {
+        if (!Application.isPlaying)
+            return;
+
         if (isPracticeModeActive)
-        {
-            if (CanRestorePracticeModeFromOnDisable())
-            {
-                RestorePracticeLayout();
-                RestorePracticeModeVisibility();
-                isPracticeModeActive = false;
-            }
-            else
-            {
-                ClearPracticeModeState();
-            }
-        }
+            ClearPracticeModeState();
 
         if (practiceButton != null)
             practiceButton.onClick.RemoveListener(ToggleWindow);
@@ -220,8 +207,34 @@ public class PracticeTasksPopupController : MonoBehaviour
             ResetPaperCycleWithoutMachineRestart();
     }
 
+    private void SubscribeRuntimeEvents()
+    {
+        if (!Application.isPlaying || runtimeSubscribed)
+            return;
+
+        // практика слушает станок через события, чтобы задания завершались от реальных действий пользователя
+        ButtonAnimator.ButtonPressed += HandlePanelButtonPressed;
+        ButtonAnimator.MachinePowerChanged += HandleMachinePowerChanged;
+        CutAnimator.CuttingStateChanged += HandleCuttingStateChanged;
+        runtimeSubscribed = true;
+    }
+
+    private void UnsubscribeRuntimeEvents()
+    {
+        if (!runtimeSubscribed)
+            return;
+
+        ButtonAnimator.ButtonPressed -= HandlePanelButtonPressed;
+        ButtonAnimator.MachinePowerChanged -= HandleMachinePowerChanged;
+        CutAnimator.CuttingStateChanged -= HandleCuttingStateChanged;
+        runtimeSubscribed = false;
+    }
+
     private void OnTransformParentChanged()
     {
+        if (!Application.isPlaying)
+            return;
+
         EnsureDropdown();
         RefreshLayout();
     }
@@ -233,43 +246,15 @@ public class PracticeTasksPopupController : MonoBehaviour
         highestUnlockedTask = Mathf.Clamp(highestUnlockedTask, 1, TaskLabels.Length + 1);
         activeTaskIndex = Mathf.Clamp(activeTaskIndex, 0, TaskLabels.Length);
 
-#if UNITY_EDITOR
         if (!Application.isPlaying)
-        {
-            QueueValidateLayoutRefresh();
             return;
-        }
-#endif
 
         EnsureDropdown();
         UpdateButtonStates();
         RefreshLayout();
     }
 
-#if UNITY_EDITOR
-    private void QueueValidateLayoutRefresh()
-    {
-        if (validateLayoutQueued)
-            return;
-
-        validateLayoutQueued = true;
-        UnityEditor.EditorApplication.delayCall += ApplyQueuedValidateLayoutRefresh;
-    }
-
-    private void ApplyQueuedValidateLayoutRefresh()
-    {
-        validateLayoutQueued = false;
-
-        if (this == null)
-            return;
-
-        practiceRect = GetComponent<RectTransform>();
-        fontAsset = ResolveFontAsset();
-        EnsureDropdown();
-        UpdateButtonStates();
-        RefreshLayout();
-    }
-#endif
+    // === Window control ===
 
     public void ToggleWindow()
     {
@@ -303,6 +288,8 @@ public class PracticeTasksPopupController : MonoBehaviour
         RefreshLayout();
     }
 
+    // === Practice mode ===
+
     private void EnterPracticeMode()
     {
         EnsureDropdown();
@@ -327,6 +314,8 @@ public class PracticeTasksPopupController : MonoBehaviour
         RestorePracticeLayout();
         HideWindow();
     }
+
+    // === Practice layout and visibility ===
 
     private void ApplyPracticeModeVisibility()
     {
@@ -511,19 +500,6 @@ public class PracticeTasksPopupController : MonoBehaviour
         hasPracticeLayoutSnapshot = true;
     }
 
-    private bool CanRestorePracticeModeFromOnDisable()
-    {
-        if (Application.isPlaying)
-            return false;
-
-#if UNITY_EDITOR
-        if (UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode)
-            return false;
-#endif
-
-        return true;
-    }
-
     private void ClearPracticeModeState()
     {
         isPracticeModeActive = false;
@@ -576,6 +552,49 @@ public class PracticeTasksPopupController : MonoBehaviour
             layout.flexibleHeight = 0f;
         }
     }
+
+    private float CalculateDropdownHeight()
+    {
+        float buttonsHeight = TaskLabels.Length * dropdownButtonHeight;
+        float spacingHeight = Mathf.Max(0, TaskLabels.Length - 1) * dropdownSpacing;
+        return buttonsHeight + spacingHeight + dropdownPadding * 2f;
+    }
+
+    private void RefreshLayout()
+    {
+        if (practiceRect == null)
+            return;
+
+        Canvas.ForceUpdateCanvases();
+        RefreshDropdownPosition();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(practiceRect);
+
+        if (dropdownRect != null)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(dropdownRect);
+    }
+
+    private void RefreshDropdownPosition()
+    {
+        if (practiceRect == null || dropdownRect == null)
+            return;
+
+        float hostHeight = GetHostHeight();
+        dropdownRect.anchoredPosition = new Vector2(0f, -(hostHeight + dropdownTopOffset));
+    }
+
+    private float GetHostHeight()
+    {
+        LayoutElement layoutElement = GetComponent<LayoutElement>();
+        if (layoutElement != null && layoutElement.preferredHeight > 0f)
+            return layoutElement.preferredHeight;
+
+        if (practiceRect != null && practiceRect.rect.height > 0f)
+            return practiceRect.rect.height;
+
+        return dropdownButtonHeight;
+    }
+
+    // === Layout snapshot helpers ===
 
     private static RectTransformState CaptureRectTransformState(RectTransform rectTransform)
     {
@@ -682,28 +701,7 @@ public class PracticeTasksPopupController : MonoBehaviour
             : new RectOffset(source.left, source.right, source.top, source.bottom);
     }
 
-    private void SubscribeRuntimeEvents()
-    {
-        if (!Application.isPlaying || runtimeSubscribed)
-            return;
-
-        // практика слушает станок через события, чтобы задания завершались от реальных действий пользователя
-        ButtonAnimator.ButtonPressed += HandlePanelButtonPressed;
-        ButtonAnimator.MachinePowerChanged += HandleMachinePowerChanged;
-        CutAnimator.CuttingStateChanged += HandleCuttingStateChanged;
-        runtimeSubscribed = true;
-    }
-
-    private void UnsubscribeRuntimeEvents()
-    {
-        if (!runtimeSubscribed)
-            return;
-
-        ButtonAnimator.ButtonPressed -= HandlePanelButtonPressed;
-        ButtonAnimator.MachinePowerChanged -= HandleMachinePowerChanged;
-        CutAnimator.CuttingStateChanged -= HandleCuttingStateChanged;
-        runtimeSubscribed = false;
-    }
+    // === Dropdown creation ===
 
     private void EnsureDropdown()
     {
@@ -726,9 +724,6 @@ public class PracticeTasksPopupController : MonoBehaviour
         EnsureDropdownButtons(dropdownRect, ref created);
         RefreshDropdownPosition();
         UpdateButtonStates();
-
-        if (created)
-            MarkSceneDirty();
     }
 
     private RectTransform FindDropdown()
@@ -867,29 +862,52 @@ public class PracticeTasksPopupController : MonoBehaviour
         buttonText.margin = sourceLabel != null ? sourceLabel.margin : buttonText.margin;
     }
 
-    private void HandleTaskClicked(int taskIndex)
+    private void UpdateButtonStates()
     {
-        if (taskIndex < 1 || taskIndex > TaskLabels.Length)
+        if (dropdownRect == null)
             return;
 
-        if (taskIndex != highestUnlockedTask || highestUnlockedTask > TaskLabels.Length)
-            return;
+        // состояние текста показывает прогресс: пройденные, доступное, активное и заблокированные задания
+        TextMeshProUGUI sourceLabel = ResolveSourceLabel();
+        Color enabledTextColor = sourceLabel != null
+            ? sourceLabel.color
+            : new Color(0.19607843f, 0.19607843f, 0.19607843f, 1f);
+        Color completedTextColor = new(enabledTextColor.r, enabledTextColor.g, enabledTextColor.b, 0.78f);
+        Color lockedTextColor = new(enabledTextColor.r, enabledTextColor.g, enabledTextColor.b, 0.55f);
+        Color activeTextColor = Color.Lerp(enabledTextColor, Color.white, 0.2f);
 
-        ResolveInfoPanel();
-        ResolveSceneControllers();
-        ActivateTask(taskIndex);
+        for (int i = 0; i < TaskLabels.Length; i++)
+        {
+            int taskIndex = i + 1;
+            Transform taskTransform = dropdownRect.Find($"task_{taskIndex}");
+            if (taskTransform == null)
+                continue;
+
+            Button button = taskTransform.GetComponent<Button>();
+            TextMeshProUGUI label = taskTransform.GetComponentInChildren<TextMeshProUGUI>(true);
+
+            bool isCompletedTask = taskIndex < highestUnlockedTask;
+            bool isAvailableTask = taskIndex == highestUnlockedTask && highestUnlockedTask <= TaskLabels.Length;
+            bool isActiveTask = taskIndex == activeTaskIndex;
+
+            if (button != null)
+                button.interactable = isAvailableTask;
+
+            if (label == null)
+                continue;
+
+            if (isActiveTask)
+                label.color = activeTextColor;
+            else if (isCompletedTask)
+                label.color = completedTextColor;
+            else if (isAvailableTask)
+                label.color = enabledTextColor;
+            else
+                label.color = lockedTextColor;
+        }
     }
 
-    private void ActivateTask(int taskIndex)
-    {
-        activeTaskIndex = taskIndex;
-        commandSequenceProgress = 0;
-        cutObservedDuringActiveTask = false;
-
-        ShowTaskInstruction(taskIndex);
-        UpdateButtonStates();
-        TryCompleteActiveTaskFromState();
-    }
+    // === Public practice gates ===
 
     public static bool IsButtonInteractionAllowed(ControlPanelButton button)
     {
@@ -931,6 +949,32 @@ public class PracticeTasksPopupController : MonoBehaviour
             return;
 
         activeInstance.HandleCutCommandAcceptedFromPanel(cutSize);
+    }
+
+    // === Task flow ===
+
+    private void HandleTaskClicked(int taskIndex)
+    {
+        if (taskIndex < 1 || taskIndex > TaskLabels.Length)
+            return;
+
+        if (taskIndex != highestUnlockedTask || highestUnlockedTask > TaskLabels.Length)
+            return;
+
+        ResolveInfoPanel();
+        ResolveSceneControllers();
+        ActivateTask(taskIndex);
+    }
+
+    private void ActivateTask(int taskIndex)
+    {
+        activeTaskIndex = taskIndex;
+        commandSequenceProgress = 0;
+        cutObservedDuringActiveTask = false;
+
+        ShowTaskInstruction(taskIndex);
+        UpdateButtonStates();
+        TryCompleteActiveTaskFromState();
     }
 
     private void HandlePanelButtonPressed(ControlPanelButton button)
@@ -1139,6 +1183,8 @@ public class PracticeTasksPopupController : MonoBehaviour
         UpdateButtonStates();
     }
 
+    // === Practice reset ===
+
     public void ResetPracticeToInitialState()
     {
         // полный сброс возвращает практику, бумагу, нож и питание к старту учебного сценария
@@ -1200,6 +1246,8 @@ public class PracticeTasksPopupController : MonoBehaviour
         UpdateButtonStates();
     }
 
+    // === Task text ===
+
     private string BuildInstructionText(int taskIndex)
     {
         return taskIndex switch
@@ -1245,46 +1293,7 @@ public class PracticeTasksPopupController : MonoBehaviour
                not ControlPanelButton.DualStart;
     }
 
-    private float CalculateDropdownHeight()
-    {
-        float buttonsHeight = TaskLabels.Length * dropdownButtonHeight;
-        float spacingHeight = Mathf.Max(0, TaskLabels.Length - 1) * dropdownSpacing;
-        return buttonsHeight + spacingHeight + dropdownPadding * 2f;
-    }
-
-    private void RefreshLayout()
-    {
-        if (practiceRect == null)
-            return;
-
-        Canvas.ForceUpdateCanvases();
-        RefreshDropdownPosition();
-        LayoutRebuilder.ForceRebuildLayoutImmediate(practiceRect);
-
-        if (dropdownRect != null)
-            LayoutRebuilder.ForceRebuildLayoutImmediate(dropdownRect);
-    }
-
-    private void RefreshDropdownPosition()
-    {
-        if (practiceRect == null || dropdownRect == null)
-            return;
-
-        float hostHeight = GetHostHeight();
-        dropdownRect.anchoredPosition = new Vector2(0f, -(hostHeight + dropdownTopOffset));
-    }
-
-    private float GetHostHeight()
-    {
-        LayoutElement layoutElement = GetComponent<LayoutElement>();
-        if (layoutElement != null && layoutElement.preferredHeight > 0f)
-            return layoutElement.preferredHeight;
-
-        if (practiceRect != null && practiceRect.rect.height > 0f)
-            return practiceRect.rect.height;
-
-        return dropdownButtonHeight;
-    }
+    // === UI utilities ===
 
     private static RectTransform CreateRectTransform(string objectName, Transform parent)
     {
@@ -1323,13 +1332,7 @@ public class PracticeTasksPopupController : MonoBehaviour
             DestroyImmediate(target);
     }
 
-    private void MarkSceneDirty()
-    {
-#if UNITY_EDITOR
-        if (!Application.isPlaying && gameObject.scene.IsValid())
-            EditorSceneManager.MarkSceneDirty(gameObject.scene);
-#endif
-    }
+    // === Scene references ===
 
     private void ResolveInfoPanel()
     {
@@ -1346,50 +1349,7 @@ public class PracticeTasksPopupController : MonoBehaviour
             cutter = Object.FindFirstObjectByType<CutAnimator>();
     }
 
-    private void UpdateButtonStates()
-    {
-        if (dropdownRect == null)
-            return;
-
-        // состояние текста показывает прогресс: пройденные, доступное, активное и заблокированные задания
-        TextMeshProUGUI sourceLabel = ResolveSourceLabel();
-        Color enabledTextColor = sourceLabel != null
-            ? sourceLabel.color
-            : new Color(0.19607843f, 0.19607843f, 0.19607843f, 1f);
-        Color completedTextColor = new(enabledTextColor.r, enabledTextColor.g, enabledTextColor.b, 0.78f);
-        Color lockedTextColor = new(enabledTextColor.r, enabledTextColor.g, enabledTextColor.b, 0.55f);
-        Color activeTextColor = Color.Lerp(enabledTextColor, Color.white, 0.2f);
-
-        for (int i = 0; i < TaskLabels.Length; i++)
-        {
-            int taskIndex = i + 1;
-            Transform taskTransform = dropdownRect.Find($"task_{taskIndex}");
-            if (taskTransform == null)
-                continue;
-
-            Button button = taskTransform.GetComponent<Button>();
-            TextMeshProUGUI label = taskTransform.GetComponentInChildren<TextMeshProUGUI>(true);
-
-            bool isCompletedTask = taskIndex < highestUnlockedTask;
-            bool isAvailableTask = taskIndex == highestUnlockedTask && highestUnlockedTask <= TaskLabels.Length;
-            bool isActiveTask = taskIndex == activeTaskIndex;
-
-            if (button != null)
-                button.interactable = isAvailableTask;
-
-            if (label == null)
-                continue;
-
-            if (isActiveTask)
-                label.color = activeTextColor;
-            else if (isCompletedTask)
-                label.color = completedTextColor;
-            else if (isAvailableTask)
-                label.color = enabledTextColor;
-            else
-                label.color = lockedTextColor;
-        }
-    }
+    // === Visual source helpers ===
 
     private static TMP_FontAsset ResolveFontAsset()
     {
