@@ -68,12 +68,27 @@ public class CameraToMachinePartController : MonoBehaviour
 
     private void Update()
     {
-        HandleSnapShortcut();
+        if (Keyboard.current != null && Keyboard.current.kKey.wasPressedThisFrame)
+            SnapToStart();
 
         if (!isMoving)
             return;
 
-        UpdateScriptedMove();
+        transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * moveSpeed);
+        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
+
+        bool positionReached = Vector3.Distance(transform.position, targetPosition) < 0.01f;
+        bool rotationReached = Quaternion.Angle(transform.rotation, targetRotation) < 0.1f;
+
+        if (!positionReached || !rotationReached)
+            return;
+
+        transform.position = targetPosition;
+        transform.rotation = targetRotation;
+        isMoving = false;
+
+        if (dualModeController != null)
+            dualModeController.EndScriptedControl();
     }
 
     public void ReturnToStart()
@@ -88,16 +103,19 @@ public class CameraToMachinePartController : MonoBehaviour
             return;
 
         ResetPartAnimations();
-        BeginScriptedCameraControl();
+
+        // ручное управление блокируется даже при мгновенном возврате, чтобы DualModeController синхронизировал свои углы
+        if (dualModeController != null)
+            dualModeController.BeginScriptedControl();
 
         isMoving = false;
         transform.position = startCameraAnchor.position;
         transform.rotation = startCameraAnchor.rotation;
-
         targetPosition = transform.position;
         targetRotation = transform.rotation;
 
-        EndScriptedCameraControl();
+        if (dualModeController != null)
+            dualModeController.EndScriptedControl();
     }
 
     public void MoveToScreen()
@@ -150,7 +168,9 @@ public class CameraToMachinePartController : MonoBehaviour
 
     public void MoveToView(Vector3 newPosition, Quaternion newRotation)
     {
-        BeginScriptedCameraControl();
+        // автоперелёт должен временно забрать управление у свободной камеры, иначе ввод игрока будет мешать движению
+        if (dualModeController != null)
+            dualModeController.BeginScriptedControl();
 
         targetPosition = newPosition;
         targetRotation = newRotation;
@@ -165,62 +185,14 @@ public class CameraToMachinePartController : MonoBehaviour
         MoveToView(anchor.position, anchor.rotation);
     }
 
-    private void HandleSnapShortcut()
-    {
-        if (Keyboard.current != null && Keyboard.current.kKey.wasPressedThisFrame)
-            SnapToStart();
-    }
-
-    private void UpdateScriptedMove()
-    {
-        transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * moveSpeed);
-        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
-
-        if (HasReachedTarget())
-            FinishScriptedMove();
-    }
-
-    private bool HasReachedTarget()
-    {
-        bool positionReached = Vector3.Distance(transform.position, targetPosition) < 0.01f;
-        bool rotationReached = Quaternion.Angle(transform.rotation, targetRotation) < 0.1f;
-        return positionReached && rotationReached;
-    }
-
-    private void FinishScriptedMove()
-    {
-        transform.position = targetPosition;
-        transform.rotation = targetRotation;
-        isMoving = false;
-
-        EndScriptedCameraControl();
-    }
-
-    // нужно, чтобы ручной режим камеры не спорил с автоматическим перелётом к выбранной части станка
-    private void BeginScriptedCameraControl()
-    {
-        if (dualModeController != null)
-            dualModeController.BeginScriptedControl();
-    }
-
-    private void EndScriptedCameraControl()
-    {
-        if (dualModeController != null)
-            dualModeController.EndScriptedControl();
-    }
-
     private void MoveFacingBack(float x, float y, float z)
     {
-        MoveToView(
-            new Vector3(x, y, z),
-            Quaternion.LookRotation(Vector3.back, Vector3.up));
+        MoveToView(new Vector3(x, y, z), Quaternion.LookRotation(Vector3.back, Vector3.up));
     }
 
     private void MoveFacingDown(float x, float y, float z)
     {
-        MoveToView(
-            new Vector3(x, y, z),
-            Quaternion.LookRotation(Vector3.down, Vector3.back));
+        MoveToView(new Vector3(x, y, z), Quaternion.LookRotation(Vector3.down, Vector3.back));
     }
 
     private void ResetPartAnimations()
