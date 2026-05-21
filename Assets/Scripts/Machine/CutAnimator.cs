@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 using System.Collections;
 
-public class CUT_Animator : MonoBehaviour
+public class CutAnimator : MonoBehaviour
 {
     public static event Action<bool> CuttingStateChanged;
     public static event Action CutCompletedAfterLift;
@@ -36,14 +36,14 @@ public class CUT_Animator : MonoBehaviour
 
     private void OnEnable()
     {
-        btn_Animator.MachinePowerChanged += HandleMachinePowerChanged;
-        btn_Animator.ButtonPressed += HandleButtonPressed;
+        ButtonAnimator.MachinePowerChanged += HandleMachinePowerChanged;
+        ButtonAnimator.ButtonPressed += HandleButtonPressed;
     }
 
     private void OnDisable()
     {
-        btn_Animator.MachinePowerChanged -= HandleMachinePowerChanged;
-        btn_Animator.ButtonPressed -= HandleButtonPressed;
+        ButtonAnimator.MachinePowerChanged -= HandleMachinePowerChanged;
+        ButtonAnimator.ButtonPressed -= HandleButtonPressed;
         SetCuttingState(false, notifyListeners: true);
     }
 
@@ -170,7 +170,7 @@ public class CUT_Animator : MonoBehaviour
 
     private bool CanStartCut()
     {
-        if (!btn_Animator.IsMachinePowered)
+        if (!ButtonAnimator.IsMachinePowered)
             return false;
 
         if (!PracticeTasksPopupController.IsCutStartAllowed())

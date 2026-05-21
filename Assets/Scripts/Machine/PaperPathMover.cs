@@ -69,7 +69,7 @@ public class PaperPathMover : MonoBehaviour
     [SerializeField] private float moveDuration = 0.35f;
 
     [Header("Cut synchronization")]
-    [SerializeField] private CUT_Animator cutter;
+    [SerializeField] private CutAnimator cutter;
     [SerializeField] private int cutWaitPaperPointIndex = 4; // P_5 в paperPoints
 
     private MoveStage stage = MoveStage.WholePaper;
@@ -128,14 +128,14 @@ public class PaperPathMover : MonoBehaviour
 
     private void OnEnable()
     {
-        btn_Animator.MachinePowerChanged += HandleMachinePowerChanged;
-        CUT_Animator.CutCompletedAfterLift += HandleCutCompletedAfterLift;
+        ButtonAnimator.MachinePowerChanged += HandleMachinePowerChanged;
+        CutAnimator.CutCompletedAfterLift += HandleCutCompletedAfterLift;
     }
 
     private void OnDisable()
     {
-        btn_Animator.MachinePowerChanged -= HandleMachinePowerChanged;
-        CUT_Animator.CutCompletedAfterLift -= HandleCutCompletedAfterLift;
+        ButtonAnimator.MachinePowerChanged -= HandleMachinePowerChanged;
+        CutAnimator.CutCompletedAfterLift -= HandleCutCompletedAfterLift;
     }
 
     private void Update()
@@ -158,7 +158,7 @@ public class PaperPathMover : MonoBehaviour
         }
 
         if (isMoving) return;
-        if (!btn_Animator.IsMachinePowered) return;
+        if (!ButtonAnimator.IsMachinePowered) return;
         if (!PracticeTasksPopupController.IsPaperAdvanceAllowed()) return;
 
         // Движение по маршруту: удерживаем N, нажимаем M
@@ -346,7 +346,7 @@ public class PaperPathMover : MonoBehaviour
         if (isMoving)
             return false;
 
-        if (!btn_Animator.IsMachinePowered)
+        if (!ButtonAnimator.IsMachinePowered)
             return false;
 
         if (!PracticeTasksPopupController.IsPaperAdvanceAllowed())
@@ -367,7 +367,7 @@ public class PaperPathMover : MonoBehaviour
     }
 
     public bool CanAcceptCutCommand =>
-        btn_Animator.IsMachinePowered &&
+        ButtonAnimator.IsMachinePowered &&
         stage == MoveStage.WholePaper &&
         currentPaperIndex == cutWaitPaperPointIndex &&
         !isMoving &&
@@ -906,7 +906,7 @@ public class PaperPathMover : MonoBehaviour
             return;
 
         bool canCutNow =
-            btn_Animator.IsMachinePowered &&
+            ButtonAnimator.IsMachinePowered &&
             !isMoving &&
             stage == MoveStage.WholePaper &&
             currentPaperIndex == cutWaitPaperPointIndex &&

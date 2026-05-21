@@ -4114,7 +4114,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 918795993}
-        m_TargetAssemblyTypeName: CameraToPartController, Assembly-CSharp
+        m_TargetAssemblyTypeName: CameraToMachinePartController, Assembly-CSharp
         m_MethodName: MoveToScreen
         m_Mode: 1
         m_Arguments:
@@ -5813,7 +5813,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 918795993}
-        m_TargetAssemblyTypeName: CameraToPartController, Assembly-CSharp
+        m_TargetAssemblyTypeName: CameraToMachinePartController, Assembly-CSharp
         m_MethodName: MoveToWorktable
         m_Mode: 1
         m_Arguments:
@@ -5987,7 +5987,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 918795993}
-        m_TargetAssemblyTypeName: CameraToPartController, Assembly-CSharp
+        m_TargetAssemblyTypeName: CameraToMachinePartController, Assembly-CSharp
         m_MethodName: MoveToBlade
         m_Mode: 1
         m_Arguments:
@@ -6559,7 +6559,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0253963b19329324e8e584faa4be12f0, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CameraController
+  m_EditorClassIdentifier: Assembly-CSharp::CameraDualModeController
   target: {fileID: 6601812648469744805}
   orbitAnchor: {fileID: 1503448185}
   currentMode: 1
@@ -6598,7 +6598,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 68959435749f68f4eac8ef7065ec34ca, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CameraToPartController
+  m_EditorClassIdentifier: Assembly-CSharp::CameraToMachinePartController
   moveSpeed: 2.5
   rotationSpeed: 6
   startCameraAnchor: {fileID: 1503448185}
@@ -6850,7 +6850,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 918795993}
-        m_TargetAssemblyTypeName: CameraToPartController, Assembly-CSharp
+        m_TargetAssemblyTypeName: CameraToMachinePartController, Assembly-CSharp
         m_MethodName: MoveToHolder
         m_Mode: 1
         m_Arguments:
@@ -7160,7 +7160,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 918795993}
-        m_TargetAssemblyTypeName: CameraToPartController, Assembly-CSharp
+        m_TargetAssemblyTypeName: CameraToMachinePartController, Assembly-CSharp
         m_MethodName: MoveToEStop
         m_Mode: 1
         m_Arguments:
@@ -8820,7 +8820,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 918795993}
-        m_TargetAssemblyTypeName: CameraViewController, Assembly-CSharp
+        m_TargetAssemblyTypeName: CameraToMachinePartController, Assembly-CSharp
         m_MethodName: MoveToStartButton
         m_Mode: 1
         m_Arguments:
@@ -9042,7 +9042,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 918795993}
-        m_TargetAssemblyTypeName: CameraToPartController, Assembly-CSharp
+        m_TargetAssemblyTypeName: CameraToMachinePartController, Assembly-CSharp
         m_MethodName: MoveToKeyboard
         m_Mode: 1
         m_Arguments:
@@ -9773,7 +9773,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 918795993}
-        m_TargetAssemblyTypeName: CameraToPartController, Assembly-CSharp
+        m_TargetAssemblyTypeName: CameraToMachinePartController, Assembly-CSharp
         m_MethodName: MoveToCutZone
         m_Mode: 1
         m_Arguments:
@@ -17094,7 +17094,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -17156,7 +17156,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -17409,7 +17409,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -17599,7 +17599,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -18306,7 +18306,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -18992,7 +18992,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -19527,7 +19527,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -19821,7 +19821,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -20164,7 +20164,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -20423,7 +20423,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -20848,7 +20848,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -21815,7 +21815,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -21956,7 +21956,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -22168,7 +22168,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -22245,7 +22245,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -22509,7 +22509,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -22653,7 +22653,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -22761,7 +22761,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -22797,7 +22797,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -22862,7 +22862,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -22923,7 +22923,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -23773,7 +23773,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -23877,7 +23877,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6ff6a45b1402dc04993e86bdb1a1ee6b, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CUT_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::CutAnimator
   holderAnimator: {fileID: 8093685889537768353}
   bladeAnimator: {fileID: 4711366461482865372}
   holdDuration: 0.5
@@ -24438,7 +24438,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -25546,7 +25546,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35
@@ -26357,7 +26357,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 1
   simulatedButtonHoldDuration: 0.12
   machineVolume: 0.35

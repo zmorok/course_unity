@@ -246,7 +246,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &410367470161525051
 GameObject:
@@ -551,7 +551,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &479701999486125321
 GameObject:
@@ -945,7 +945,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &828590024763269568
 GameObject:
@@ -1161,7 +1161,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &929540373288372688
 GameObject:
@@ -1471,7 +1471,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &1038107506575740132
 GameObject:
@@ -1630,7 +1630,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &1213171423866386260
 GameObject:
@@ -4027,7 +4027,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &4850231573049748166
 GameObject:
@@ -4243,7 +4243,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &5164443665627543667
 GameObject:
@@ -4459,7 +4459,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &5254579840713142372
 GameObject:
@@ -4771,7 +4771,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &5444808553024078164
 GameObject:
@@ -5318,7 +5318,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6ff6a45b1402dc04993e86bdb1a1ee6b, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CUT_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::CutAnimator
   holderAnimator: {fileID: 5019530401752087358}
   bladeAnimator: {fileID: 8401565112127296067}
   holdDuration: 0.5
@@ -5481,7 +5481,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &6660367317464356543
 GameObject:
@@ -5809,7 +5809,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &6842999814826794829
 GameObject:
@@ -6114,7 +6114,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &6972486060032641424
 GameObject:
@@ -6419,7 +6419,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &7162325937574250790
 GameObject:
@@ -6546,7 +6546,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &7284053324782673651
 GameObject:
@@ -6762,7 +6762,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &7506337397681546169
 GameObject:
@@ -6889,7 +6889,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &7639531489316555332
 GameObject:
@@ -7105,7 +7105,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &7746818824548687795
 GameObject:
@@ -7232,7 +7232,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &7795381052965600373
 GameObject:
@@ -7593,7 +7593,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &8033426624053334272
 GameObject:
@@ -8400,7 +8400,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &8539653200000092787
 GameObject:
@@ -8762,7 +8762,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &8722539964969921286
 GameObject:
@@ -8889,7 +8889,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &8743650500140483564
 GameObject:
@@ -9080,7 +9080,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &9068036281857025212
 GameObject:
@@ -9296,7 +9296,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03da8d72f568ab14dbbc8bd4bb3a18d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BTN_Animator
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonAnimator
   buttonVolume: 0.7
 --- !u!1 &9162124146871987729
 GameObject:

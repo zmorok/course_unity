@@ -58,25 +58,25 @@ public class ControlPanelScreenDisplay : MonoBehaviour
     {
         EnsureDisplay();
         EnsureIndicators();
-        isCutting = CUT_Animator.IsCutting;
-        ApplyPowerState(btn_Animator.IsMachinePowered);
+        isCutting = CutAnimator.IsCutting;
+        ApplyPowerState(ButtonAnimator.IsMachinePowered);
     }
 
     private void OnEnable()
     {
-        btn_Animator.ButtonPressed += HandleButton;
-        btn_Animator.MachinePowerChanged += HandleMachinePowerChanged;
-        CUT_Animator.CuttingStateChanged += HandleCuttingStateChanged;
-        isCutting = CUT_Animator.IsCutting;
-        ApplyPowerState(btn_Animator.IsMachinePowered);
+        ButtonAnimator.ButtonPressed += HandleButton;
+        ButtonAnimator.MachinePowerChanged += HandleMachinePowerChanged;
+        CutAnimator.CuttingStateChanged += HandleCuttingStateChanged;
+        isCutting = CutAnimator.IsCutting;
+        ApplyPowerState(ButtonAnimator.IsMachinePowered);
         RefreshDisplay();
     }
 
     private void OnDisable()
     {
-        btn_Animator.ButtonPressed -= HandleButton;
-        btn_Animator.MachinePowerChanged -= HandleMachinePowerChanged;
-        CUT_Animator.CuttingStateChanged -= HandleCuttingStateChanged;
+        ButtonAnimator.ButtonPressed -= HandleButton;
+        ButtonAnimator.MachinePowerChanged -= HandleMachinePowerChanged;
+        CutAnimator.CuttingStateChanged -= HandleCuttingStateChanged;
     }
 
     private void HandleButton(ControlPanelButton button)

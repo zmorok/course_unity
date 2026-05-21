@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public class CameraViewController : MonoBehaviour
+public class CameraToMachinePartController : MonoBehaviour
 {
     [SerializeField] private float moveSpeed = 2.5f;
     [SerializeField] private float rotationSpeed = 6f;

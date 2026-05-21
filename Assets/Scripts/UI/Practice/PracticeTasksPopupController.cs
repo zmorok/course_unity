@@ -54,7 +54,7 @@ public class PracticeTasksPopupController : MonoBehaviour
     private TMP_FontAsset fontAsset;
     private BottomInfoPanel infoPanel;
     private PaperPathMover paperMover;
-    private CUT_Animator cutter;
+    private CutAnimator cutter;
 
     private int highestUnlockedTask = 1;
     private int activeTaskIndex;
@@ -681,9 +681,9 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (!Application.isPlaying || runtimeSubscribed)
             return;
 
-        btn_Animator.ButtonPressed += HandlePanelButtonPressed;
-        btn_Animator.MachinePowerChanged += HandleMachinePowerChanged;
-        CUT_Animator.CuttingStateChanged += HandleCuttingStateChanged;
+        ButtonAnimator.ButtonPressed += HandlePanelButtonPressed;
+        ButtonAnimator.MachinePowerChanged += HandleMachinePowerChanged;
+        CutAnimator.CuttingStateChanged += HandleCuttingStateChanged;
         runtimeSubscribed = true;
     }
 
@@ -692,9 +692,9 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (!runtimeSubscribed)
             return;
 
-        btn_Animator.ButtonPressed -= HandlePanelButtonPressed;
-        btn_Animator.MachinePowerChanged -= HandleMachinePowerChanged;
-        CUT_Animator.CuttingStateChanged -= HandleCuttingStateChanged;
+        ButtonAnimator.ButtonPressed -= HandlePanelButtonPressed;
+        ButtonAnimator.MachinePowerChanged -= HandleMachinePowerChanged;
+        CutAnimator.CuttingStateChanged -= HandleCuttingStateChanged;
         runtimeSubscribed = false;
     }
 
@@ -1028,18 +1028,18 @@ public class PracticeTasksPopupController : MonoBehaviour
 
         bool completed = activeTaskIndex switch
         {
-            1 => btn_Animator.IsMachinePowered,
+            1 => ButtonAnimator.IsMachinePowered,
             2 => paperMover != null && paperMover.CurrentPaperPointIndex >= task2TargetPaperPointIndex,
             3 => paperMover != null && paperMover.CurrentPaperPointIndex >= paperMover.CutWaitPaperPointIndex,
             4 => requiredCommandSequence != null &&
                  requiredCommandSequence.Length > 0 &&
                  commandSequenceProgress >= requiredCommandSequence.Length,
-            5 => (cutObservedDuringActiveTask && !CUT_Animator.IsCutting) ||
+            5 => (cutObservedDuringActiveTask && !CutAnimator.IsCutting) ||
                  (cutter != null && cutter.CutCompleted) ||
                  (paperMover != null && (paperMover.IsSecStage || paperMover.IsMainStage || paperMover.IsFinished)),
             6 => paperMover != null && (paperMover.IsMainStage || paperMover.IsFinished),
             7 => paperMover != null && paperMover.IsFinished,
-            8 => !btn_Animator.IsMachinePowered,
+            8 => !ButtonAnimator.IsMachinePowered,
             _ => false
         };
 
@@ -1135,11 +1135,11 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (cutter != null)
             cutter.ResetCutState();
 
-        if (btn_Animator.IsMachinePowered)
+        if (ButtonAnimator.IsMachinePowered)
         {
             bool wasPracticeModeActive = isPracticeModeActive;
             isPracticeModeActive = false;
-            btn_Animator.TrySimulateButtonPress(ControlPanelButton.PowerSwitch);
+            ButtonAnimator.TrySimulateButtonPress(ControlPanelButton.PowerSwitch);
             isPracticeModeActive = wasPracticeModeActive;
         }
 
@@ -1169,7 +1169,7 @@ public class PracticeTasksPopupController : MonoBehaviour
 
         if (shouldKeepPracticeFlow)
         {
-            int nextTaskIndex = btn_Animator.IsMachinePowered ? 2 : 1;
+            int nextTaskIndex = ButtonAnimator.IsMachinePowered ? 2 : 1;
             highestUnlockedTask = Mathf.Clamp(nextTaskIndex, 1, TaskLabels.Length + 1);
             ActivateTask(nextTaskIndex);
             return;
@@ -1322,7 +1322,7 @@ public class PracticeTasksPopupController : MonoBehaviour
             paperMover = Object.FindFirstObjectByType<PaperPathMover>();
 
         if (cutter == null)
-            cutter = Object.FindFirstObjectByType<CUT_Animator>();
+            cutter = Object.FindFirstObjectByType<CutAnimator>();
     }
 
     private void UpdateButtonStates()

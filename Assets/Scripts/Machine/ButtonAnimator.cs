@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public class btn_Animator : MonoBehaviour
+public class ButtonAnimator : MonoBehaviour
 {
     public static event Action<ControlPanelButton> ButtonPressed;
     public static event Action<bool> MachinePowerChanged;
@@ -45,7 +45,7 @@ public class btn_Animator : MonoBehaviour
         public AnimatorTargetBinding[] Targets { get; }
     }
 
-    private static btn_Animator inputOwner;
+    private static ButtonAnimator inputOwner;
     private const string PressParameterName = "isPressed";
     private const string MachineLoopSoundPath = "Sounds/POWER_bg";
     private const string ButtonSmallSoundPath = "Sounds/BTN_Small_sound";
