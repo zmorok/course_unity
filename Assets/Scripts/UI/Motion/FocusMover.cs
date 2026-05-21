@@ -19,6 +19,7 @@ public class FocusMover : MonoBehaviour
     {
         Vector3 target = isFocused ? focusPosition : startPosition;
 
+        // плавный переход нужен, чтобы фокус панели выглядел как движение интерфейса, а не резкий скачок
         transform.position = Vector3.Lerp(
             transform.position,
             target,

@@ -27,6 +27,7 @@ public class HighlightTarget : MonoBehaviour
 
             for (int j = 0; j < materials.Length; j++)
             {
+                // нужно, чтобы подсветка не затирала исходный цвет материала после ухода курсора
                 if (materials[j].HasProperty("_Color"))
                     originalColors[i][j] = materials[j].color;
             }

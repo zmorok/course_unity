@@ -53,6 +53,7 @@ public class BottomInfoPanel : MonoBehaviour
         if (initialized || infoText == null)
             return;
 
+        // возврат TextMeshPro к настройкам из инспектора
         defaultFontSize = infoText.fontSize;
         defaultFontSizeMin = infoText.fontSizeMin;
         defaultFontSizeMax = infoText.fontSizeMax > 0f ? infoText.fontSizeMax : infoText.fontSize;
@@ -86,6 +87,7 @@ public class BottomInfoPanel : MonoBehaviour
             return;
         }
 
+        // длинные подсказки временно уменьшают шрифт
         infoText.enableAutoSizing = true;
         infoText.fontSizeMax = defaultFontSize;
         infoText.fontSizeMin = Mathf.Min(defaultFontSize, longMessageAutoSizeMin);

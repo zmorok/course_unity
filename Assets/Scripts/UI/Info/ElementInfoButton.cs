@@ -11,6 +11,7 @@ public class ElementInfoButton : MonoBehaviour, IPointerEnterHandler, IPointerEx
 
     public void OnPointerEnter(PointerEventData eventData)
     {
+        // наведение сразу связывает текстовую подсказку с подсветкой нужной детали в сцене
         if (infoPanel != null)
             infoPanel.ShowInfo(infoMessage);
 
