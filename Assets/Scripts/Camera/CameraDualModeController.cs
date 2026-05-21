@@ -65,12 +65,8 @@ public class CameraDualModeController : MonoBehaviour
 
     private void Start()
     {
-        if (target == null)
-        {
-            Debug.LogError("Не назначен target.");
-            enabled = false;
+        if (!ValidateSetup())
             return;
-        }
 
         mouse = Mouse.current;
         keyboard = Keyboard.current;
@@ -82,22 +78,7 @@ public class CameraDualModeController : MonoBehaviour
             return;
         }
 
-        if (currentMode == CameraMode.Orbit)
-        {
-            if (orbitAnchor == null)
-            {
-                Debug.LogError("Не назначен orbitAnchor.");
-                enabled = false;
-                return;
-            }
-
-            ApplyOrbitFromAnchor();
-        }
-        else
-        {
-            transform.position = ClampPositionToRoom(transform.position);
-            CaptureFreeAnglesFromCurrentRotation();
-        }
+        InitializeCurrentMode();
     }
 
     private void Update()
@@ -109,21 +90,75 @@ public class CameraDualModeController : MonoBehaviour
         }
 
         if (keyboard.qKey.wasPressedThisFrame)
-        {
             ToggleMode();
-        }
 
         if (currentMode == CameraMode.Orbit)
-        {
-            HandleOrbitKeyboardRotation();
-            HandleOrbitZoom();
-            UpdateOrbitCameraPosition();
-        }
+            UpdateOrbitMode();
         else
+            UpdateFreeMode();
+    }
+
+    // нужен CameraToMachinePartController: во время автоперехода ручной ввод камеры временно блокируется
+    public void BeginScriptedControl(bool forceFreeMode = true)
+    {
+        inputLocked = true;
+        freeLookDragActive = false;
+        ResetFreeMovementSmoothing();
+
+        if (forceFreeMode)
+            currentMode = CameraMode.Free;
+
+        SyncFromCurrentTransform();
+    }
+
+    public void EndScriptedControl()
+    {
+        SyncFromCurrentTransform();
+        inputLocked = false;
+        freeLookDragActive = false;
+    }
+
+    // нужен после автопереходов: внутренние yaw/pitch/distance должны совпадать с реальным Transform камеры
+    public void SyncFromCurrentTransform()
+    {
+        if (currentMode == CameraMode.Orbit)
         {
-            HandleFreeLook();
-            HandleFreeMovement();
+            SyncOrbitStateFromCurrentTransform();
+            return;
         }
+
+        CaptureFreeAnglesFromCurrentRotation();
+    }
+
+    private bool ValidateSetup()
+    {
+        if (target == null)
+        {
+            Debug.LogError("Не назначен target.");
+            enabled = false;
+            return false;
+        }
+
+        if (currentMode == CameraMode.Orbit && orbitAnchor == null)
+        {
+            Debug.LogError("Не назначен orbitAnchor.");
+            enabled = false;
+            return false;
+        }
+
+        return true;
+    }
+
+    private void InitializeCurrentMode()
+    {
+        if (currentMode == CameraMode.Orbit)
+        {
+            ApplyOrbitFromAnchor();
+            return;
+        }
+
+        transform.position = ClampPositionToRoom(transform.position);
+        CaptureFreeAnglesFromCurrentRotation();
     }
 
     private void ToggleMode()
@@ -133,24 +168,19 @@ public class CameraDualModeController : MonoBehaviour
             currentMode = CameraMode.Free;
             CaptureFreeAnglesFromCurrentRotation();
             ResetFreeMovementSmoothing();
+            return;
         }
-        else
-        {
-            currentMode = CameraMode.Orbit;
-            ResetFreeMovementSmoothing();
-            ApplyOrbitFromAnchor();
-        }
+
+        currentMode = CameraMode.Orbit;
+        ResetFreeMovementSmoothing();
+        ApplyOrbitFromAnchor();
     }
 
-    private void CaptureFreeAnglesFromCurrentRotation()
+    private void UpdateOrbitMode()
     {
-        Vector3 euler = transform.eulerAngles;
-        freeYaw = euler.y;
-        freePitch = NormalizeAngle(euler.x);
-        smoothedFreeYaw = freeYaw;
-        smoothedFreePitch = freePitch;
-        freeYawSmoothVelocity = 0f;
-        freePitchSmoothVelocity = 0f;
+        HandleOrbitKeyboardRotation();
+        HandleOrbitZoom();
+        UpdateOrbitCameraPosition();
     }
 
     private void ApplyOrbitFromAnchor()
@@ -174,8 +204,7 @@ public class CameraDualModeController : MonoBehaviour
 
         Vector3 euler = transform.eulerAngles;
         orbitYaw = euler.y;
-        orbitPitch = NormalizeAngle(euler.x);
-        orbitPitch = Mathf.Clamp(orbitPitch, minOrbitPitch, maxOrbitPitch);
+        orbitPitch = Mathf.Clamp(NormalizeAngle(euler.x), minOrbitPitch, maxOrbitPitch);
 
         UpdateOrbitCameraPosition();
     }
@@ -199,7 +228,8 @@ public class CameraDualModeController : MonoBehaviour
     {
         float scrollY = mouse.scroll.ReadValue().y;
 
-        if (Mathf.Abs(scrollY) < 0.01f) return;
+        if (Mathf.Abs(scrollY) < 0.01f)
+            return;
 
         distance -= scrollY * zoomSpeed * 0.01f;
         distance = Mathf.Clamp(distance, minDistance, maxDistance);
@@ -208,20 +238,17 @@ public class CameraDualModeController : MonoBehaviour
     private void UpdateOrbitCameraPosition()
     {
         Vector3 center = target.position;
-
         Quaternion rotation = Quaternion.Euler(orbitPitch, orbitYaw, 0f);
-        Vector3 direction = rotation * Vector3.forward;
+        Vector3 directionFromTargetToCamera = -(rotation * Vector3.forward);
 
-        // нужна позиция камеры позади её forward, чтобы она смотрела на центр
-        direction = -direction;
-
-        float actualDistance = GetAllowedOrbitDistance(center, direction, distance);
-        Vector3 newPosition = center + direction * actualDistance;
+        float actualDistance = GetAllowedOrbitDistance(center, directionFromTargetToCamera, distance);
+        Vector3 newPosition = center + directionFromTargetToCamera * actualDistance;
 
         transform.position = ClampPositionToRoom(newPosition);
         transform.LookAt(center);
     }
 
+    // не даёт orbit-камере уйти за стены, даже если пользователь сильно отдалил колесом мыши
     private float GetAllowedOrbitDistance(Vector3 center, Vector3 direction, float desiredDistance)
     {
         float requestedDistance = Mathf.Clamp(desiredDistance, minDistance, maxDistance);
@@ -251,62 +278,6 @@ public class CameraDualModeController : MonoBehaviour
             currentMax = Mathf.Min(currentMax, distanceToWall);
     }
 
-    private void HandleFreeLook()
-    {
-        if (mouse.leftButton.isPressed)
-        {
-            if (!freeLookDragActive || mouse.leftButton.wasPressedThisFrame)
-            {
-                CaptureFreeAnglesFromCurrentRotation();
-                freeLookDragActive = true;
-            }
-            else
-            {
-                Vector2 delta = mouse.delta.ReadValue();
-
-                freeYaw += delta.x * freeLookSpeed;
-                freePitch -= delta.y * freeLookSpeed;
-                freePitch = Mathf.Clamp(freePitch, minFreePitch, maxFreePitch);
-            }
-        }
-        else
-        {
-            freeLookDragActive = false;
-        }
-
-        ApplyFreeLookSmoothing();
-    }
-
-    public void BeginScriptedControl(bool forceFreeMode = true)
-    {
-        inputLocked = true;
-        freeLookDragActive = false;
-        ResetFreeMovementSmoothing();
-
-        if (forceFreeMode)
-            currentMode = CameraMode.Free;
-
-        SyncFromCurrentTransform();
-    }
-
-    public void EndScriptedControl()
-    {
-        SyncFromCurrentTransform();
-        inputLocked = false;
-        freeLookDragActive = false;
-    }
-
-    public void SyncFromCurrentTransform()
-    {
-        if (currentMode == CameraMode.Orbit)
-        {
-            SyncOrbitStateFromCurrentTransform();
-            return;
-        }
-
-        CaptureFreeAnglesFromCurrentRotation();
-    }
-
     private void SyncOrbitStateFromCurrentTransform()
     {
         if (target == null)
@@ -315,9 +286,7 @@ public class CameraDualModeController : MonoBehaviour
         Vector3 offset = transform.position - target.position;
 
         if (offset.sqrMagnitude < 0.0001f)
-        {
             offset = -transform.forward * Mathf.Max(minDistance, distance);
-        }
 
         distance = Mathf.Clamp(offset.magnitude, minDistance, maxDistance);
 
@@ -328,29 +297,65 @@ public class CameraDualModeController : MonoBehaviour
         orbitPitch = Mathf.Clamp(NormalizeAngle(euler.x), minOrbitPitch, maxOrbitPitch);
     }
 
+    private void UpdateFreeMode()
+    {
+        HandleFreeLook();
+        HandleFreeMovement();
+    }
+
+    private void HandleFreeLook()
+    {
+        if (mouse.leftButton.isPressed)
+            UpdateFreeLookDrag();
+        else
+            freeLookDragActive = false;
+        
+
+        ApplyFreeLookSmoothing();
+    }
+
+    private void UpdateFreeLookDrag()
+    {
+        if (!freeLookDragActive || mouse.leftButton.wasPressedThisFrame)
+        {
+            CaptureFreeAnglesFromCurrentRotation();
+            freeLookDragActive = true;
+            return;
+        }
+
+        Vector2 delta = mouse.delta.ReadValue();
+
+        freeYaw += delta.x * freeLookSpeed;
+        freePitch -= delta.y * freeLookSpeed;
+        freePitch = Mathf.Clamp(freePitch, minFreePitch, maxFreePitch);
+    }
+
+    private void ApplyFreeLookSmoothing()
+    {
+        float smoothTime = Mathf.Max(0.001f, freeLookSmoothTime);
+        smoothedFreeYaw = Mathf.SmoothDampAngle(smoothedFreeYaw, freeYaw, ref freeYawSmoothVelocity, smoothTime);
+        smoothedFreePitch = Mathf.SmoothDampAngle(smoothedFreePitch, freePitch, ref freePitchSmoothVelocity, smoothTime);
+
+        transform.rotation = Quaternion.Euler(smoothedFreePitch, smoothedFreeYaw, 0f);
+    }
+
+    private void CaptureFreeAnglesFromCurrentRotation()
+    {
+        Vector3 euler = transform.eulerAngles;
+        freeYaw = euler.y;
+        freePitch = NormalizeAngle(euler.x);
+        smoothedFreeYaw = freeYaw;
+        smoothedFreePitch = freePitch;
+        freeYawSmoothVelocity = 0f;
+        freePitchSmoothVelocity = 0f;
+    }
+
     private void HandleFreeMovement()
     {
-        Vector3 move = Vector3.zero;
-
-        Vector3 forward = transform.forward;
-        Vector3 right = transform.right;
-
-        forward.y = 0f;
-        right.y = 0f;
-
-        forward.Normalize();
-        right.Normalize();
-
-        if (keyboard.wKey.isPressed) move += forward;
-        if (keyboard.sKey.isPressed) move -= forward;
-        if (keyboard.aKey.isPressed) move -= right;
-        if (keyboard.dKey.isPressed) move += right;
-        if (keyboard.spaceKey.isPressed) move += Vector3.up;
-        if (keyboard.leftShiftKey.isPressed) move += Vector3.down;
-
-        Vector3 targetVelocity = Vector3.zero;
-        if (move != Vector3.zero)
-            targetVelocity = move.normalized * freeMoveSpeed;
+        Vector3 moveDirection = GetFreeMoveDirection();
+        Vector3 targetVelocity = moveDirection == Vector3.zero
+            ? Vector3.zero
+            : moveDirection.normalized * freeMoveSpeed;
 
         float smoothTime = Mathf.Max(0.001f, freeMoveSmoothTime);
         freeMoveVelocity = Vector3.SmoothDamp(
@@ -372,13 +377,27 @@ public class CameraDualModeController : MonoBehaviour
         transform.position = clampedPosition;
     }
 
-    private void ApplyFreeLookSmoothing()
+    private Vector3 GetFreeMoveDirection()
     {
-        float smoothTime = Mathf.Max(0.001f, freeLookSmoothTime);
-        smoothedFreeYaw = Mathf.SmoothDampAngle(smoothedFreeYaw, freeYaw, ref freeYawSmoothVelocity, smoothTime);
-        smoothedFreePitch = Mathf.SmoothDampAngle(smoothedFreePitch, freePitch, ref freePitchSmoothVelocity, smoothTime);
+        Vector3 forward = transform.forward;
+        Vector3 right = transform.right;
 
-        transform.rotation = Quaternion.Euler(smoothedFreePitch, smoothedFreeYaw, 0f);
+        forward.y = 0f;
+        right.y = 0f;
+
+        forward.Normalize();
+        right.Normalize();
+
+        Vector3 move = Vector3.zero;
+
+        if (keyboard.wKey.isPressed) move += forward;
+        if (keyboard.sKey.isPressed) move -= forward;
+        if (keyboard.aKey.isPressed) move -= right;
+        if (keyboard.dKey.isPressed) move += right;
+        if (keyboard.spaceKey.isPressed) move += Vector3.up;
+        if (keyboard.leftShiftKey.isPressed) move += Vector3.down;
+
+        return move;
     }
 
     private void ResetFreeMovementSmoothing()
@@ -387,6 +406,7 @@ public class CameraDualModeController : MonoBehaviour
         freeMoveVelocityRef = Vector3.zero;
     }
 
+    // сбрасывает скорость по заблокированной оси, чтобы камера не продолжала "давить" в стену после clamp
     private void StopBlockedFreeVelocityAxes(Vector3 requestedPosition, Vector3 clampedPosition)
     {
         if (!Mathf.Approximately(requestedPosition.x, clampedPosition.x))

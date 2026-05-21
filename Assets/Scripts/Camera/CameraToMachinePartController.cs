@@ -3,6 +3,7 @@ using UnityEngine.InputSystem;
 
 public class CameraToMachinePartController : MonoBehaviour
 {
+    [Header("Movement")]
     [SerializeField] private float moveSpeed = 2.5f;
     [SerializeField] private float rotationSpeed = 6f;
     [SerializeField] private Transform startCameraAnchor;
@@ -10,11 +11,6 @@ public class CameraToMachinePartController : MonoBehaviour
     [Header("Animated parts")]
     [SerializeField] private Animator bladeAnimator;
     [SerializeField] private Animator holderAnimator;
-
-    private Vector3 targetPosition;
-    private Quaternion targetRotation;
-    private bool isMoving = false;
-    private CameraDualModeController dualModeController;
 
     [Header("Screen")]
     [SerializeField] private float xScreen = 0.15f;
@@ -56,6 +52,11 @@ public class CameraToMachinePartController : MonoBehaviour
     [SerializeField] private float yHolder = 1.43f;
     [SerializeField] private float zHolder = 1.02f;
 
+    private Vector3 targetPosition;
+    private Quaternion targetRotation;
+    private bool isMoving;
+    private CameraDualModeController dualModeController;
+
     private void Start()
     {
         dualModeController = GetComponent<CameraDualModeController>();
@@ -67,34 +68,89 @@ public class CameraToMachinePartController : MonoBehaviour
 
     private void Update()
     {
-        if (Keyboard.current != null && Keyboard.current.kKey.wasPressedThisFrame)
-        {
-            SnapToStart();
-        }
+        HandleSnapShortcut();
 
-        if (!isMoving) return;
+        if (!isMoving)
+            return;
 
-        transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * moveSpeed);
-        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
+        UpdateScriptedMove();
+    }
 
-        bool positionReached = Vector3.Distance(transform.position, targetPosition) < 0.01f;
-        bool rotationReached = Quaternion.Angle(transform.rotation, targetRotation) < 0.1f;
+    public void ReturnToStart()
+    {
+        ResetPartAnimations();
+        MoveToAnchor(startCameraAnchor);
+    }
 
-        if (positionReached && rotationReached)
-        {
-            transform.position = targetPosition;
-            transform.rotation = targetRotation;
-            isMoving = false;
+    public void SnapToStart()
+    {
+        if (startCameraAnchor == null)
+            return;
 
-            if (dualModeController != null)
-                dualModeController.EndScriptedControl();
-        }
+        ResetPartAnimations();
+        BeginScriptedCameraControl();
+
+        isMoving = false;
+        transform.position = startCameraAnchor.position;
+        transform.rotation = startCameraAnchor.rotation;
+
+        targetPosition = transform.position;
+        targetRotation = transform.rotation;
+
+        EndScriptedCameraControl();
+    }
+
+    public void MoveToScreen()
+    {
+        ResetPartAnimations();
+        MoveFacingBack(xScreen, yScreen, zScreen);
+    }
+
+    public void MoveToKeyboard()
+    {
+        ResetPartAnimations();
+        MoveFacingBack(xKeyboard, yKeyboard, zKeyboard);
+    }
+
+    public void MoveToCutZone()
+    {
+        ResetPartAnimations();
+        MoveFacingBack(xCutzone, yCutzone, zCutzone);
+    }
+
+    public void MoveToWorktable()
+    {
+        ResetPartAnimations();
+        MoveFacingDown(xWorktable, yWorktable, zWorktable);
+    }
+
+    public void MoveToStartButton()
+    {
+        ResetPartAnimations();
+        MoveFacingBack(xStartButton, yStartButton, zStartButton);
+    }
+
+    public void MoveToEStop()
+    {
+        ResetPartAnimations();
+        MoveFacingBack(xEStop, yEStop, zEStop);
+    }
+
+    public void MoveToBlade()
+    {
+        FocusBlade();
+        MoveFacingBack(xBlade, yBlade, zBlade);
+    }
+
+    public void MoveToHolder()
+    {
+        FocusHolder();
+        MoveFacingBack(xHolder, yHolder, zHolder);
     }
 
     public void MoveToView(Vector3 newPosition, Quaternion newRotation)
     {
-        if (dualModeController != null)
-            dualModeController.BeginScriptedControl();
+        BeginScriptedCameraControl();
 
         targetPosition = newPosition;
         targetRotation = newRotation;
@@ -103,25 +159,68 @@ public class CameraToMachinePartController : MonoBehaviour
 
     public void MoveToAnchor(Transform anchor)
     {
-        if (anchor == null) return;
+        if (anchor == null)
+            return;
 
         MoveToView(anchor.position, anchor.rotation);
     }
 
-    private void MoveBackZ(float x, float y, float z)
+    private void HandleSnapShortcut()
     {
-        MoveToView(
-            new Vector3(x, y, z),
-            Quaternion.LookRotation(Vector3.back, Vector3.up)
-        );
+        if (Keyboard.current != null && Keyboard.current.kKey.wasPressedThisFrame)
+            SnapToStart();
     }
 
-    private void MoveDownY(float x, float y, float z)
+    private void UpdateScriptedMove()
+    {
+        transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * moveSpeed);
+        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
+
+        if (HasReachedTarget())
+            FinishScriptedMove();
+    }
+
+    private bool HasReachedTarget()
+    {
+        bool positionReached = Vector3.Distance(transform.position, targetPosition) < 0.01f;
+        bool rotationReached = Quaternion.Angle(transform.rotation, targetRotation) < 0.1f;
+        return positionReached && rotationReached;
+    }
+
+    private void FinishScriptedMove()
+    {
+        transform.position = targetPosition;
+        transform.rotation = targetRotation;
+        isMoving = false;
+
+        EndScriptedCameraControl();
+    }
+
+    // нужно, чтобы ручной режим камеры не спорил с автоматическим перелётом к выбранной части станка
+    private void BeginScriptedCameraControl()
+    {
+        if (dualModeController != null)
+            dualModeController.BeginScriptedControl();
+    }
+
+    private void EndScriptedCameraControl()
+    {
+        if (dualModeController != null)
+            dualModeController.EndScriptedControl();
+    }
+
+    private void MoveFacingBack(float x, float y, float z)
     {
         MoveToView(
             new Vector3(x, y, z),
-            Quaternion.LookRotation(Vector3.down, Vector3.back)
-        );
+            Quaternion.LookRotation(Vector3.back, Vector3.up));
+    }
+
+    private void MoveFacingDown(float x, float y, float z)
+    {
+        MoveToView(
+            new Vector3(x, y, z),
+            Quaternion.LookRotation(Vector3.down, Vector3.back));
     }
 
     private void ResetPartAnimations()
@@ -149,79 +248,5 @@ public class CameraToMachinePartController : MonoBehaviour
 
         if (holderAnimator != null)
             holderAnimator.SetBool("h", true);
-    }
-
-    public void ReturnToStart()
-    {
-        ResetPartAnimations();
-        MoveToAnchor(startCameraAnchor);
-    }
-
-    public void SnapToStart()
-    {
-        if (startCameraAnchor == null) return;
-
-        ResetPartAnimations();
-
-        if (dualModeController != null)
-            dualModeController.BeginScriptedControl();
-
-        isMoving = false;
-        transform.position = startCameraAnchor.position;
-        transform.rotation = startCameraAnchor.rotation;
-
-        targetPosition = transform.position;
-        targetRotation = transform.rotation;
-
-        if (dualModeController != null)
-            dualModeController.EndScriptedControl();
-    }
-
-    public void MoveToScreen()
-    {
-        ResetPartAnimations();
-        MoveBackZ(xScreen, yScreen, zScreen);
-    }
-
-    public void MoveToKeyboard()
-    {
-        ResetPartAnimations();
-        MoveBackZ(xKeyboard, yKeyboard, zKeyboard);
-    }
-
-    public void MoveToCutZone()
-    {
-        ResetPartAnimations();
-        MoveBackZ(xCutzone, yCutzone, zCutzone);
-    }
-
-    public void MoveToWorktable()
-    {
-        ResetPartAnimations();
-        MoveDownY(xWorktable, yWorktable, zWorktable);
-    }
-
-    public void MoveToStartButton()
-    {
-        ResetPartAnimations();
-        MoveBackZ(xStartButton, yStartButton, zStartButton);
-    }
-
-    public void MoveToEStop()
-    {
-        ResetPartAnimations();
-        MoveBackZ(xEStop, yEStop, zEStop);
-    }
-
-    public void MoveToBlade()
-    {
-        FocusBlade();
-        MoveBackZ(xBlade, yBlade, zBlade);
-    }
-
-    public void MoveToHolder()
-    {
-        FocusHolder();
-        MoveBackZ(xHolder, yHolder, zHolder);
     }
 }
