@@ -62,23 +62,20 @@ public class BottomRecordTableController : MonoBehaviour
         if (string.IsNullOrWhiteSpace(rawValue))
         {
             ShowValidationError("Введите размер реза в миллиметрах.");
-            valueInputField.ActivateInputField();
-            valueInputField.text = string.Empty;
+            ClearAndFocusInputField();
             return;
         }
 
         if (!TryBuildEntry(rawValue, out TableEntry entry, out string errorMessage))
         {
             ShowValidationError(errorMessage);
-            valueInputField.ActivateInputField();
-            valueInputField.text = string.Empty;
+            ClearAndFocusInputField();
             return;
         }
 
         entries.Add(entry);
 
-        valueInputField.text = string.Empty;
-        valueInputField.ActivateInputField();
+        ClearAndFocusInputField();
         RefreshTableView();
     }
 
@@ -106,6 +103,7 @@ public class BottomRecordTableController : MonoBehaviour
         entry = default;
         errorMessage = string.Empty;
 
+        // в таблицу попадают только реальные размеры реза, без мусорных значений
         if (!TryParseNumericValue(rawValue, out float numericValue))
         {
             errorMessage = "Значение должно быть числом в миллиметрах.";
@@ -132,6 +130,8 @@ public class BottomRecordTableController : MonoBehaviour
 
         float cutSize = numericValue;
         float clampedSourceLength = Mathf.Max(1f, sourceSheetLength);
+
+        // здесь размер реза считается отходом, поэтому полезная часть остаётся от исходного листа после реза
         float usefulPartSize = Mathf.Max(0f, clampedSourceLength - cutSize);
         float wasteSize = Mathf.Min(cutSize, clampedSourceLength);
         float usagePercent = Mathf.Clamp01(usefulPartSize / clampedSourceLength) * 100f;
@@ -142,6 +142,7 @@ public class BottomRecordTableController : MonoBehaviour
 
     private bool TryParseNumericValue(string rawValue, out float numericValue)
     {
+        // локализация случая ввода дробной части числа через точку или запятую
         string normalizedValue = rawValue
             .Trim()
             .Replace(" ", string.Empty)
@@ -158,6 +159,15 @@ public class BottomRecordTableController : MonoBehaviour
     {
         ResolveInfoPanel();
         infoPanel?.ShowInfo(string.IsNullOrWhiteSpace(message) ? invalidValueMessage : message);
+    }
+
+    private void ClearAndFocusInputField()
+    {
+        if (valueInputField == null)
+            return;
+
+        valueInputField.text = string.Empty;
+        valueInputField.ActivateInputField();
     }
 
     private void ResolveInfoPanel()
@@ -183,6 +193,8 @@ public class BottomRecordTableController : MonoBehaviour
         builder.AppendLine("<size=115%><b>Журнал резки бумаги</b></size>");
         builder.AppendLine($"Исходный лист: {FormatNumber(sourceSheetLength)} мм. Вводимое значение — размер отрезаемого отхода.");
         builder.AppendLine();
+
+        // моноширинная разметка таблицы
         builder.AppendLine("<mspace=10px><b> № | Рез, мм | Готовая часть, мм | Отход, мм | Использование, %</b></mspace>");
         builder.AppendLine("<mspace=10px>---+---------+-------------------+-----------+------------------</mspace>");
 
@@ -231,6 +243,7 @@ public class BottomRecordTableController : MonoBehaviour
         if (string.IsNullOrEmpty(value))
             return string.Empty;
 
+        // длинное значение не сдвигает следующие колонки таблицы
         string trimmed = value.Trim();
         if (trimmed.Length <= maxLength)
             return trimmed;

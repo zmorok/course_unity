@@ -121,6 +121,7 @@ public class PracticeTasksPopupController : MonoBehaviour
 
     private void OnEnable()
     {
+        // нужно, чтобы статические проверки из Machine и ControlPanel всегда обращались к текущему контроллеру практики
         activeInstance = this;
         practiceButton = GetComponent<Button>();
         practiceRect = GetComponent<RectTransform>();
@@ -201,6 +202,7 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (!Application.isPlaying)
             return;
 
+        // служебные сочетания нужны для быстрой проверки практики без перезапуска сцены
         Keyboard keyboard = Keyboard.current;
         if (keyboard == null)
             return;
@@ -331,6 +333,7 @@ public class PracticeTasksPopupController : MonoBehaviour
         ResolvePracticeModeLayoutReferences();
         practiceModeActiveStates.Clear();
 
+        // режим практики временно прячет лишний UI, поэтому исходные active-состояния обязательно сохраняются
         Canvas canvas = GetComponentInParent<Canvas>();
         Transform canvasTransform = canvas != null ? canvas.transform : null;
         Transform bottomTransform = canvasTransform != null ? canvasTransform.Find("bottom") : null;
@@ -385,6 +388,7 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (target == null)
             return;
 
+        // состояние кэшируется один раз, чтобы при выходе из практики вернуть сцену ровно в прежний вид
         if (!practiceModeActiveStates.ContainsKey(target))
             practiceModeActiveStates.Add(target, target.activeSelf);
 
@@ -397,6 +401,7 @@ public class PracticeTasksPopupController : MonoBehaviour
         ResolvePracticeModeLayoutReferences();
         CapturePracticeLayoutState();
 
+        // layout панели временно растягивается под список заданий, поэтому перед изменениями сохраняется снимок настроек
         if (buttonContainerSizeFitter != null)
         {
             buttonContainerSizeFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
@@ -488,6 +493,7 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (hasPracticeLayoutSnapshot)
             return;
 
+        // снимок нужен только один раз на вход в практику, иначе восстановление вернёт уже изменённые значения
         normalDropdownButtonHeight = dropdownButtonHeight;
 
         if (buttonContainerRect != null)
@@ -681,6 +687,7 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (!Application.isPlaying || runtimeSubscribed)
             return;
 
+        // практика слушает станок через события, чтобы задания завершались от реальных действий пользователя
         ButtonAnimator.ButtonPressed += HandlePanelButtonPressed;
         ButtonAnimator.MachinePowerChanged += HandleMachinePowerChanged;
         CutAnimator.CuttingStateChanged += HandleCuttingStateChanged;
@@ -703,6 +710,7 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (practiceRect == null || practiceRect.parent == null)
             return;
 
+        // список заданий создаётся кодом, чтобы кнопка практики сама поддерживала нужную структуру в сцене
         RectTransform existingDropdown = FindDropdown();
         bool created = false;
 
@@ -790,6 +798,8 @@ public class PracticeTasksPopupController : MonoBehaviour
     {
         LayoutElement hostLayout = GetComponent<LayoutElement>();
         LayoutElement layout = GetOrAddComponent<LayoutElement>(buttonRect.gameObject, out _);
+
+        // кнопки заданий копируют размеры основной кнопки практики, чтобы не настраивать каждый пункт вручную
         layout.minWidth = hostLayout != null ? hostLayout.minWidth : -1f;
         layout.minHeight = hostLayout != null ? hostLayout.minHeight : -1f;
         layout.preferredWidth = hostLayout != null ? hostLayout.preferredWidth : -1f;
@@ -886,6 +896,7 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (!Application.isPlaying || activeInstance == null)
             return true;
 
+        // внешний код спрашивает разрешение здесь, чтобы ограничения практики не размазывались по ButtonAnimator
         return activeInstance.IsButtonInteractionAllowedInternal(button);
     }
 
@@ -894,6 +905,7 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (!Application.isPlaying || activeInstance == null)
             return true;
 
+        // PaperPathMover остаётся простым и не знает детали заданий, он только спрашивает можно ли двигать бумагу
         return activeInstance.IsPaperAdvanceAllowedInternal();
     }
 
@@ -902,6 +914,7 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (!Application.isPlaying || activeInstance == null)
             return true;
 
+        // CutAnimator не хранит правила практики, поэтому запуск реза блокируется через этот общий вход
         return activeInstance.IsCutStartAllowedInternal();
     }
 
@@ -928,6 +941,7 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (requiredCommandSequence == null || requiredCommandSequence.Length == 0)
             return;
 
+        // четвёртое задание проверяет не просто факт Enter, а правильный порядок ввода команды на панели
         ControlPanelButton expectedButton = requiredCommandSequence[commandSequenceProgress];
         if (button == expectedButton)
         {
@@ -964,6 +978,7 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (requiredCommandSequence == null || requiredCommandSequence.Length == 0)
             return;
 
+        // команда считается выполненной только если панель приняла именно тот размер реза, который задан практикой
         if (!TryGetRequiredCutSize(out int requiredCutSize) ||
             !Mathf.Approximately(cutSize, requiredCutSize))
         {
@@ -1026,6 +1041,7 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (activeTaskIndex <= 0)
             return;
 
+        // задания проверяются по состоянию реальных контроллеров, чтобы практика совпадала с фактической работой станка
         bool completed = activeTaskIndex switch
         {
             1 => ButtonAnimator.IsMachinePowered,
@@ -1061,6 +1077,7 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (!IsPracticeFlowActive())
             return true;
 
+        // во время практики разрешаются только кнопки, которые нужны для текущего шага обучения
         if (button == ControlPanelButton.EmergencyStop)
             return true;
 
@@ -1082,6 +1099,7 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (!IsPracticeFlowActive())
             return true;
 
+        // движение бумаги ограничивается текущим заданием, иначе пользователь сможет перескочить нужный этап
         if (activeTaskIndex <= 0 || paperMover == null)
             return false;
 
@@ -1100,6 +1118,7 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (!IsPracticeFlowActive())
             return true;
 
+        // рез разрешён только на отдельном шаге, чтобы задания после ввода команды не завершались случайно
         if (activeTaskIndex <= 0)
             return false;
 
@@ -1122,6 +1141,7 @@ public class PracticeTasksPopupController : MonoBehaviour
 
     public void ResetPracticeToInitialState()
     {
+        // полный сброс возвращает практику, бумагу, нож и питание к старту учебного сценария
         activeTaskIndex = 0;
         commandSequenceProgress = 0;
         cutObservedDuringActiveTask = false;
@@ -1150,6 +1170,7 @@ public class PracticeTasksPopupController : MonoBehaviour
 
     private void ResetPaperCycleWithoutMachineRestart()
     {
+        // частичный сброс нужен для отладки маршрута бумаги без выключения станка и выхода из режима практики
         bool shouldKeepPracticeFlow = IsPracticeFlowActive();
 
         activeTaskIndex = 0;
@@ -1330,6 +1351,7 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (dropdownRect == null)
             return;
 
+        // состояние текста показывает прогресс: пройденные, доступное, активное и заблокированные задания
         TextMeshProUGUI sourceLabel = ResolveSourceLabel();
         Color enabledTextColor = sourceLabel != null
             ? sourceLabel.color
