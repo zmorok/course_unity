@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 [RequireComponent(typeof(Button))]
@@ -32,8 +33,9 @@ public class PracticeTasksPopupController : MonoBehaviour
     [Header("Progress")]
     [SerializeField] private bool resetProgressOnEnable = true;
 
-    [Header("Task 5")]
-    [SerializeField] private ControlPanelButton[] requiredCommandSequence =
+    [Header("Task 4 Command")]
+    [FormerlySerializedAs("requiredCommandSequence")]
+    [SerializeField] private ControlPanelButton[] task4CommandSequence =
     {
         ControlPanelButton.Digit1,
         ControlPanelButton.Digit0,
@@ -710,18 +712,16 @@ public class PracticeTasksPopupController : MonoBehaviour
 
         // список заданий создаётся кодом, чтобы кнопка практики сама поддерживала нужную структуру в сцене
         RectTransform existingDropdown = FindDropdown();
-        bool created = false;
 
         if (existingDropdown == null)
         {
             existingDropdown = CreateRectTransform(dropdownObjectName, practiceRect);
-            created = true;
         }
 
         dropdownRect = existingDropdown;
 
         ConfigureDropdownContainer(dropdownRect);
-        EnsureDropdownButtons(dropdownRect, ref created);
+        EnsureDropdownButtons(dropdownRect);
         RefreshDropdownPosition();
         UpdateButtonStates();
     }
@@ -749,7 +749,7 @@ public class PracticeTasksPopupController : MonoBehaviour
 
         Outline dropdownOutline = targetDropdownRect.GetComponent<Outline>();
         if (dropdownOutline != null)
-            DestroyImmediateSafe(dropdownOutline);
+            DestroySafe(dropdownOutline);
 
         VerticalLayoutGroup layoutGroup = GetOrAddComponent<VerticalLayoutGroup>(targetDropdownRect.gameObject, out _);
         layoutGroup.padding = new RectOffset(
@@ -766,10 +766,10 @@ public class PracticeTasksPopupController : MonoBehaviour
 
         LayoutElement rootLayout = targetDropdownRect.GetComponent<LayoutElement>();
         if (rootLayout != null)
-            DestroyImmediateSafe(rootLayout);
+            DestroySafe(rootLayout);
     }
 
-    private void EnsureDropdownButtons(RectTransform targetDropdownRect, ref bool created)
+    private void EnsureDropdownButtons(RectTransform targetDropdownRect)
     {
         for (int i = 0; i < TaskLabels.Length; i++)
         {
@@ -782,7 +782,6 @@ public class PracticeTasksPopupController : MonoBehaviour
             if (buttonRect == null)
             {
                 buttonRect = CreateRectTransform(objectName, targetDropdownRect);
-                created = true;
             }
 
             ConfigureTaskButton(buttonRect, TaskLabels[i], taskIndex);
@@ -982,16 +981,16 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (!Application.isPlaying || activeTaskIndex != 4)
             return;
 
-        if (requiredCommandSequence == null || requiredCommandSequence.Length == 0)
+        if (task4CommandSequence == null || task4CommandSequence.Length == 0)
             return;
 
         // четвёртое задание проверяет не просто факт Enter, а правильный порядок ввода команды на панели
-        ControlPanelButton expectedButton = requiredCommandSequence[commandSequenceProgress];
+        ControlPanelButton expectedButton = task4CommandSequence[commandSequenceProgress];
         if (button == expectedButton)
         {
             commandSequenceProgress++;
 
-            if (commandSequenceProgress >= requiredCommandSequence.Length)
+            if (commandSequenceProgress >= task4CommandSequence.Length)
             {
                 TryCompleteActiveTaskFromState();
             }
@@ -999,13 +998,13 @@ public class PracticeTasksPopupController : MonoBehaviour
             {
                 ShowTaskInstruction(
                     activeTaskIndex,
-                    $"Прогресс ввода: {commandSequenceProgress}/{requiredCommandSequence.Length}");
+                    $"Прогресс ввода: {commandSequenceProgress}/{task4CommandSequence.Length}");
             }
 
             return;
         }
 
-        if (!IsTask5RelevantButton(button))
+        if (!IsCommandInputButton(button))
             return;
 
         commandSequenceProgress = 0;
@@ -1019,7 +1018,7 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (activeTaskIndex != 4)
             return;
 
-        if (requiredCommandSequence == null || requiredCommandSequence.Length == 0)
+        if (task4CommandSequence == null || task4CommandSequence.Length == 0)
             return;
 
         // команда считается выполненной только если панель приняла именно тот размер реза, который задан практикой
@@ -1033,7 +1032,7 @@ public class PracticeTasksPopupController : MonoBehaviour
             return;
         }
 
-        commandSequenceProgress = requiredCommandSequence.Length;
+        commandSequenceProgress = task4CommandSequence.Length;
         TryCompleteActiveTaskFromState();
     }
 
@@ -1041,13 +1040,13 @@ public class PracticeTasksPopupController : MonoBehaviour
     {
         cutSize = 0;
 
-        if (requiredCommandSequence == null || requiredCommandSequence.Length == 0)
+        if (task4CommandSequence == null || task4CommandSequence.Length == 0)
             return false;
 
         bool hasDigits = false;
-        for (int i = 0; i < requiredCommandSequence.Length; i++)
+        for (int i = 0; i < task4CommandSequence.Length; i++)
         {
-            ControlPanelButton button = requiredCommandSequence[i];
+            ControlPanelButton button = task4CommandSequence[i];
             if (button == ControlPanelButton.Enter)
                 break;
 
@@ -1091,9 +1090,9 @@ public class PracticeTasksPopupController : MonoBehaviour
             1 => ButtonAnimator.IsMachinePowered,
             2 => paperMover != null && paperMover.CurrentPaperPointIndex >= task2TargetPaperPointIndex,
             3 => paperMover != null && paperMover.CurrentPaperPointIndex >= paperMover.CutWaitPaperPointIndex,
-            4 => requiredCommandSequence != null &&
-                 requiredCommandSequence.Length > 0 &&
-                 commandSequenceProgress >= requiredCommandSequence.Length,
+            4 => task4CommandSequence != null &&
+                 task4CommandSequence.Length > 0 &&
+                 commandSequenceProgress >= task4CommandSequence.Length,
             5 => (cutObservedDuringActiveTask && !CutAnimator.IsCutting) ||
                  (cutter != null && cutter.CutCompleted) ||
                  (paperMover != null && (paperMover.IsSecStage || paperMover.IsMainStage || paperMover.IsFinished)),
@@ -1171,9 +1170,7 @@ public class PracticeTasksPopupController : MonoBehaviour
 
     private void CompleteActiveTask(int taskIndex)
     {
-        activeTaskIndex = 0;
-        commandSequenceProgress = 0;
-        cutObservedDuringActiveTask = false;
+        ClearActiveTaskProgress();
         highestUnlockedTask = Mathf.Clamp(taskIndex + 1, 1, TaskLabels.Length + 1);
 
         ResolveInfoPanel();
@@ -1183,14 +1180,19 @@ public class PracticeTasksPopupController : MonoBehaviour
         UpdateButtonStates();
     }
 
+    private void ClearActiveTaskProgress()
+    {
+        activeTaskIndex = 0;
+        commandSequenceProgress = 0;
+        cutObservedDuringActiveTask = false;
+    }
+
     // === Practice reset ===
 
     public void ResetPracticeToInitialState()
     {
         // полный сброс возвращает практику, бумагу, нож и питание к старту учебного сценария
-        activeTaskIndex = 0;
-        commandSequenceProgress = 0;
-        cutObservedDuringActiveTask = false;
+        ClearActiveTaskProgress();
         highestUnlockedTask = 1;
 
         ResolveSceneControllers();
@@ -1219,9 +1221,7 @@ public class PracticeTasksPopupController : MonoBehaviour
         // частичный сброс нужен для отладки маршрута бумаги без выключения станка и выхода из режима практики
         bool shouldKeepPracticeFlow = IsPracticeFlowActive();
 
-        activeTaskIndex = 0;
-        commandSequenceProgress = 0;
-        cutObservedDuringActiveTask = false;
+        ClearActiveTaskProgress();
         highestUnlockedTask = 1;
 
         ResolveSceneControllers();
@@ -1286,7 +1286,7 @@ public class PracticeTasksPopupController : MonoBehaviour
         infoPanel.ShowInfo(message);
     }
 
-    private static bool IsTask5RelevantButton(ControlPanelButton button)
+    private static bool IsCommandInputButton(ControlPanelButton button)
     {
         return button is not ControlPanelButton.PowerSwitch and
                not ControlPanelButton.EmergencyStop and
@@ -1321,15 +1321,12 @@ public class PracticeTasksPopupController : MonoBehaviour
         return component;
     }
 
-    private static void DestroyImmediateSafe(Object target)
+    private static void DestroySafe(Object target)
     {
         if (target == null)
             return;
 
-        if (Application.isPlaying)
-            Destroy(target);
-        else
-            DestroyImmediate(target);
+        Destroy(target);
     }
 
     // === Scene references ===
