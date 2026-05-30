@@ -32,6 +32,8 @@ public class PaperPathMover : MonoBehaviour
         [NonSerialized] public Quaternion MainInitialLocalRotation;
         [NonSerialized] public Vector3 SecInitialLocalPosition;
         [NonSerialized] public Quaternion SecInitialLocalRotation;
+        [NonSerialized] public Vector3 MainInitialLocalScale;
+        [NonSerialized] public Vector3 SecInitialLocalScale;
 
         public bool IsResolved => Root != null && Main != null && Sec != null;
 
@@ -56,9 +58,24 @@ public class PaperPathMover : MonoBehaviour
         new() { Label = "C", RootObjectName = "paper_C", MinCutSize = 601f, MaxCutSize = 900f, CutForwardOffset = -0.365f }
     };
 
+    [Header("Dynamic paper cut")]
+    [SerializeField] private bool useDynamicCutSizing = true;
+    [SerializeField] private float sourcePaperLengthMm = 900f;
+    [SerializeField] private float minDynamicCutSizeMm = 100f;
+    [SerializeField] private float maxDynamicCutSizeMm = 900f;
+    [SerializeField] private float minDynamicPartScaleZ = 0.001f;
+
     private Transform main;
     private Transform sec;
     private PaperCutVariant activeVariant;
+    private PaperCutVariant dynamicCutVariant;
+    private bool dynamicPaperReady;
+    private float dynamicPaperStartLocalZ;
+    private float dynamicPaperEndLocalZ;
+    private float dynamicPaperVisualLength;
+    private float dynamicPartBaseLocalLength;
+    private float dynamicCutReferenceLocalZ;
+    private float dynamicEdgeCapVisualScaleZ;
 
     [Header("Path points")]
     [SerializeField] private Transform[] paperPoints; // P_1 ... P_6
@@ -241,11 +258,16 @@ public class PaperPathMover : MonoBehaviour
             variant.MainInitialLocalRotation = variant.Main.localRotation;
             variant.SecInitialLocalPosition = variant.Sec.localPosition;
             variant.SecInitialLocalRotation = variant.Sec.localRotation;
+            variant.MainInitialLocalScale = variant.Main.localScale;
+            variant.SecInitialLocalScale = variant.Sec.localScale;
             hasResolvedVariant = true;
         }
 
         if (!hasResolvedVariant)
             Debug.LogError("Нет ни одного корректного варианта бумаги");
+
+        if (hasResolvedVariant && useDynamicCutSizing && !PrepareDynamicPaperGeometry())
+            return false;
 
         return hasResolvedVariant;
     }
@@ -263,13 +285,21 @@ public class PaperPathMover : MonoBehaviour
 
             variant.Main.localPosition = variant.MainInitialLocalPosition;
             variant.Main.localRotation = variant.MainInitialLocalRotation;
+            variant.Main.localScale = variant.MainInitialLocalScale;
             variant.Sec.localPosition = variant.SecInitialLocalPosition;
             variant.Sec.localRotation = variant.SecInitialLocalRotation;
+            variant.Sec.localScale = variant.SecInitialLocalScale;
         }
     }
 
     private void SelectDefaultVariant()
     {
+        if (useDynamicCutSizing && dynamicPaperReady && TryApplyDynamicPaperSize(minDynamicCutSizeMm))
+        {
+            SelectVariant(dynamicCutVariant);
+            return;
+        }
+
         SelectVariant(FindFirstResolvedVariant());
     }
 
@@ -290,6 +320,9 @@ public class PaperPathMover : MonoBehaviour
 
     private PaperCutVariant FindVariantForCutSize(float cutSize)
     {
+        if (useDynamicCutSizing)
+            return TryApplyDynamicPaperSize(cutSize) ? dynamicCutVariant : null;
+
         if (cutVariants == null)
             return null;
 
@@ -320,6 +353,150 @@ public class PaperPathMover : MonoBehaviour
 
             variant.Root.gameObject.SetActive(variant == selectedVariant);
         }
+    }
+
+    private bool PrepareDynamicPaperGeometry()
+    {
+        dynamicPaperReady = false;
+        dynamicCutVariant = FindFirstResolvedVariant();
+
+        if (dynamicCutVariant == null)
+        {
+            Debug.LogError("Нет шаблона бумаги для динамического реза");
+            return false;
+        }
+
+        Transform mainBody = FindPaperBody(dynamicCutVariant.Main);
+        Transform secBody = FindPaperBody(dynamicCutVariant.Sec);
+
+        if (mainBody == null || secBody == null)
+        {
+            Debug.LogError($"В '{dynamicCutVariant.RootObjectName}' у main/sec должен быть дочерний объект part");
+            return false;
+        }
+
+        dynamicPaperStartLocalZ = dynamicCutVariant.MainInitialLocalPosition.z;
+        dynamicPaperEndLocalZ = dynamicCutVariant.SecInitialLocalPosition.z;
+        dynamicPaperVisualLength = dynamicPaperEndLocalZ - dynamicPaperStartLocalZ;
+        dynamicPartBaseLocalLength = mainBody.localScale.z;
+
+        if (dynamicPaperVisualLength <= 0f || dynamicPartBaseLocalLength <= 0f || sourcePaperLengthMm <= 0f)
+        {
+            Debug.LogError("Некорректные размеры шаблона бумаги для динамического реза");
+            return false;
+        }
+
+        float templateMainLength = dynamicCutVariant.MainInitialLocalScale.z * dynamicPartBaseLocalLength;
+        float templateSeamLocalZ = dynamicPaperStartLocalZ + templateMainLength;
+        dynamicCutReferenceLocalZ = templateSeamLocalZ - dynamicCutVariant.CutForwardOffset;
+        dynamicEdgeCapVisualScaleZ = ResolveEdgeCapVisualScale(dynamicCutVariant);
+
+        dynamicPaperReady = true;
+        return true;
+    }
+
+    private bool TryApplyDynamicPaperSize(float cutSize)
+    {
+        if (!dynamicPaperReady || dynamicCutVariant == null)
+            return false;
+
+        float minCutSize = Mathf.Max(0f, minDynamicCutSizeMm);
+        float maxCutSize = Mathf.Min(Mathf.Max(minCutSize, maxDynamicCutSizeMm), sourcePaperLengthMm);
+
+        if (cutSize < minCutSize || cutSize > maxCutSize)
+            return false;
+
+        float cutRatio = Mathf.Clamp01(cutSize / sourcePaperLengthMm);
+        float secLength = dynamicPaperVisualLength * cutRatio;
+        float mainLength = Mathf.Max(0f, dynamicPaperVisualLength - secLength);
+
+        float minScaleZ = Mathf.Max(0.0001f, minDynamicPartScaleZ);
+        float mainScaleZ = Mathf.Max(minScaleZ, mainLength / dynamicPartBaseLocalLength);
+        float secScaleZ = Mathf.Max(minScaleZ, secLength / dynamicPartBaseLocalLength);
+
+        SetLocalZ(dynamicCutVariant.Main, dynamicPaperStartLocalZ);
+        SetLocalZ(dynamicCutVariant.Sec, dynamicPaperEndLocalZ);
+        SetLocalScaleZ(dynamicCutVariant.Main, mainScaleZ);
+        SetLocalScaleZ(dynamicCutVariant.Sec, secScaleZ);
+        SetPartVisible(dynamicCutVariant.Main, mainLength > 0.0001f);
+        SetPartVisible(dynamicCutVariant.Sec, secLength > 0.0001f);
+        AdjustEdgeCapScale(dynamicCutVariant.Main, mainScaleZ);
+        AdjustEdgeCapScale(dynamicCutVariant.Sec, secScaleZ);
+
+        float seamLocalZ = dynamicPaperEndLocalZ - secLength;
+        dynamicCutVariant.CutForwardOffset = seamLocalZ - dynamicCutReferenceLocalZ;
+        dynamicCutVariant.Label = $"{Mathf.RoundToInt(cutSize)} мм";
+        dynamicCutVariant.MinCutSize = minCutSize;
+        dynamicCutVariant.MaxCutSize = maxCutSize;
+
+        return true;
+    }
+
+    private static Transform FindPaperBody(Transform partRoot)
+    {
+        return partRoot != null ? partRoot.Find("part") : null;
+    }
+
+    private float ResolveEdgeCapVisualScale(PaperCutVariant variant)
+    {
+        Transform cap = variant.Main != null ? variant.Main.Find("edge_front") : null;
+        if (cap != null)
+            return Mathf.Max(0.0001f, cap.localScale.z * variant.MainInitialLocalScale.z);
+
+        cap = variant.Sec != null ? variant.Sec.Find("edge_front") : null;
+        if (cap != null)
+            return Mathf.Max(0.0001f, cap.localScale.z * variant.SecInitialLocalScale.z);
+
+        return 0.0001f;
+    }
+
+    private static void SetLocalZ(Transform target, float z)
+    {
+        if (target == null)
+            return;
+
+        Vector3 position = target.localPosition;
+        position.z = z;
+        target.localPosition = position;
+    }
+
+    private static void SetLocalScaleZ(Transform target, float z)
+    {
+        if (target == null)
+            return;
+
+        Vector3 scale = target.localScale;
+        scale.z = z;
+        target.localScale = scale;
+    }
+
+    private static void SetPartVisible(Transform target, bool visible)
+    {
+        if (target == null)
+            return;
+
+        if (target.gameObject.activeSelf != visible)
+            target.gameObject.SetActive(visible);
+    }
+
+    private void AdjustEdgeCapScale(Transform partRoot, float partScaleZ)
+    {
+        float safePartScaleZ = Mathf.Max(Mathf.Max(0.0001f, minDynamicPartScaleZ), partScaleZ);
+        float capScaleZ = dynamicEdgeCapVisualScaleZ / safePartScaleZ;
+
+        SetEdgeCapScale(partRoot, "edge_front", capScaleZ);
+        SetEdgeCapScale(partRoot, "edge_back", capScaleZ);
+    }
+
+    private static void SetEdgeCapScale(Transform partRoot, string edgeName, float scaleZ)
+    {
+        Transform edge = partRoot != null ? partRoot.Find(edgeName) : null;
+        if (edge == null)
+            return;
+
+        Vector3 scale = edge.localScale;
+        scale.z = scaleZ;
+        edge.localScale = scale;
     }
 
     private void TryMoveNext()
@@ -406,7 +583,7 @@ public class PaperPathMover : MonoBehaviour
         RefreshCutAvailability();
 
         StartCoroutine(MovePaperToCutOffset(selectedVariant));
-        statusLabel = $"PAPER {selectedVariant.Label}";
+        statusLabel = useDynamicCutSizing ? $"CUT {Mathf.RoundToInt(cutSize)}" : $"PAPER {selectedVariant.Label}";
         return true;
     }
 
@@ -989,4 +1166,10 @@ public class PaperPathMover : MonoBehaviour
     public int CutWaitPaperPointIndex => cutWaitPaperPointIndex;
     public bool IsCutOffsetApplied => cutOffsetApplied;
     public string ActivePaperVariantLabel => activeVariant != null ? activeVariant.Label : string.Empty;
+    public string ActivePaperSelectionDescription =>
+        activeVariant == null
+            ? string.Empty
+            : useDynamicCutSizing
+                ? $"размер реза {activeVariant.Label}"
+                : $"тип бумаги {activeVariant.Label}";
 }

@@ -163,7 +163,7 @@ public class ControlPanelScreenDisplay : MonoBehaviour
             PracticeTasksPopupController.NotifyCutCommandAcceptedFromPanel((float)cutSize);
 
             if (!PracticeTasksPopupController.IsPracticeFlowRunning())
-                ShowBottomInfo($"Выбран тип бумаги {paperMover.ActivePaperVariantLabel}. Бумага смещается к линии реза.");
+                ShowBottomInfo($"Выбран {paperMover.ActivePaperSelectionDescription}. Бумага смещается к линии реза.");
 
             RefreshDisplay();
             return true;
