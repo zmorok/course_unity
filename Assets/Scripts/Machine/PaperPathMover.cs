@@ -140,6 +140,9 @@ public class PaperPathMover : MonoBehaviour
 
     private void Update()
     {
+        if (SimulationInputGate.IsLocked)
+            return;
+
         Keyboard keyboard = Keyboard.current;
         if (keyboard == null) return;
 
@@ -343,6 +346,9 @@ public class PaperPathMover : MonoBehaviour
 
     public bool TryMoveNextStep()
     {
+        if (SimulationInputGate.IsLocked)
+            return false;
+
         if (isMoving)
             return false;
 

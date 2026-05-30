@@ -128,6 +128,12 @@ public class ButtonAnimator : MonoBehaviour
     {
         if (inputOwner != this || keyboard == null) return;
 
+        if (SimulationInputGate.IsLocked)
+        {
+            ResetAllButtons();
+            return;
+        }
+
         // Z включает режим работы с панелью, а Shift переключает второй слой символов вроде +, /, =
         bool zPressed = keyboard.zKey.isPressed;
         bool shiftPressed = keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
@@ -422,6 +428,9 @@ public class ButtonAnimator : MonoBehaviour
 
     private bool TrySimulateButtonPressInternal(ControlPanelButton button)
     {
+        if (SimulationInputGate.IsLocked)
+            return false;
+
         if (!bindingsByButton.TryGetValue(button, out ButtonAnimatorBinding binding))
             return false;
 

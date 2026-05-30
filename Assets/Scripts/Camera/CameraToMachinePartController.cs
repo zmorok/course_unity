@@ -68,6 +68,9 @@ public class CameraToMachinePartController : MonoBehaviour
 
     private void Update()
     {
+        if (SimulationInputGate.IsLocked)
+            return;
+
         if (Keyboard.current != null && Keyboard.current.kKey.wasPressedThisFrame)
             SnapToStart();
 
@@ -168,6 +171,9 @@ public class CameraToMachinePartController : MonoBehaviour
 
     public void MoveToView(Vector3 newPosition, Quaternion newRotation)
     {
+        if (SimulationInputGate.IsLocked)
+            return;
+
         // автоперелёт должен временно забрать управление у свободной камеры, иначе ввод игрока будет мешать движению
         if (dualModeController != null)
             dualModeController.BeginScriptedControl();

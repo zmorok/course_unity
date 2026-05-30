@@ -174,6 +174,9 @@ public class PracticeTasksPopupController : MonoBehaviour
 
     private void Update()
     {
+        if (SimulationInputGate.IsLocked)
+            return;
+
         TryHandleResetShortcut();
 
         if (!Application.isPlaying)

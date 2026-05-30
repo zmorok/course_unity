@@ -100,7 +100,7 @@ public class CameraDualModeController : MonoBehaviour
 
     private void Update()
     {
-        if (inputLocked)
+        if (inputLocked || SimulationInputGate.IsLocked)
         {
             freeLookDragActive = false;
             return;
