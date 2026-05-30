@@ -34,6 +34,8 @@ public class PaperPathMover : MonoBehaviour
         [NonSerialized] public Quaternion SecInitialLocalRotation;
         [NonSerialized] public Vector3 MainInitialLocalScale;
         [NonSerialized] public Vector3 SecInitialLocalScale;
+        [NonSerialized] public PaperPartGeometry MainGeometry;
+        [NonSerialized] public PaperPartGeometry SecGeometry;
 
         public bool IsResolved => Root != null && Main != null && Sec != null;
 
@@ -41,6 +43,26 @@ public class PaperPathMover : MonoBehaviour
         {
             return cutSize >= MinCutSize && cutSize <= MaxCutSize;
         }
+    }
+
+    private sealed class PaperPartGeometry
+    {
+        public Transform FrontEdge;
+        public Transform BackEdge;
+        public Transform LeftEdge;
+        public Transform RightEdge;
+        public Transform FrontPlane;
+        public Transform BackPlane;
+        public Transform LeftPlane;
+        public Transform RightPlane;
+        public Vector3 FrontEdgeScale;
+        public Vector3 BackEdgeScale;
+        public Vector3 LeftEdgeScale;
+        public Vector3 RightEdgeScale;
+        public Vector3 FrontPlaneScale;
+        public Vector3 BackPlaneScale;
+        public Vector3 LeftPlaneScale;
+        public Vector3 RightPlaneScale;
     }
 
     [Header("Back Cut Holder")]
@@ -64,6 +86,7 @@ public class PaperPathMover : MonoBehaviour
     [SerializeField] private float minDynamicCutSizeMm = 100f;
     [SerializeField] private float maxDynamicCutSizeMm = 900f;
     [SerializeField] private float minDynamicPartScaleZ = 0.001f;
+    [SerializeField] private float dynamicSeamOverlapLocalZ = 0.01f;
 
     private Transform main;
     private Transform sec;
@@ -260,6 +283,8 @@ public class PaperPathMover : MonoBehaviour
             variant.SecInitialLocalRotation = variant.Sec.localRotation;
             variant.MainInitialLocalScale = variant.Main.localScale;
             variant.SecInitialLocalScale = variant.Sec.localScale;
+            variant.MainGeometry = CapturePaperPartGeometry(variant.Main);
+            variant.SecGeometry = CapturePaperPartGeometry(variant.Sec);
             hasResolvedVariant = true;
         }
 
@@ -289,6 +314,8 @@ public class PaperPathMover : MonoBehaviour
             variant.Sec.localPosition = variant.SecInitialLocalPosition;
             variant.Sec.localRotation = variant.SecInitialLocalRotation;
             variant.Sec.localScale = variant.SecInitialLocalScale;
+            RestorePaperPartGeometry(variant.MainGeometry);
+            RestorePaperPartGeometry(variant.SecGeometry);
         }
     }
 
@@ -409,10 +436,16 @@ public class PaperPathMover : MonoBehaviour
         float cutRatio = Mathf.Clamp01(cutSize / sourcePaperLengthMm);
         float secLength = dynamicPaperVisualLength * cutRatio;
         float mainLength = Mathf.Max(0f, dynamicPaperVisualLength - secLength);
+        float seamBleed = Mathf.Max(0f, dynamicSeamOverlapLocalZ) * 0.5f;
+        float mainVisualLength = mainLength > 0.0001f ? mainLength + seamBleed : 0f;
+        float secVisualLength = secLength > 0.0001f ? secLength + seamBleed : 0f;
 
         float minScaleZ = Mathf.Max(0.0001f, minDynamicPartScaleZ);
-        float mainScaleZ = Mathf.Max(minScaleZ, mainLength / dynamicPartBaseLocalLength);
-        float secScaleZ = Mathf.Max(minScaleZ, secLength / dynamicPartBaseLocalLength);
+        float mainScaleZ = Mathf.Max(minScaleZ, mainVisualLength / dynamicPartBaseLocalLength);
+        float secScaleZ = Mathf.Max(minScaleZ, secVisualLength / dynamicPartBaseLocalLength);
+
+        RestorePaperPartGeometry(dynamicCutVariant.MainGeometry);
+        RestorePaperPartGeometry(dynamicCutVariant.SecGeometry);
 
         SetLocalZ(dynamicCutVariant.Main, dynamicPaperStartLocalZ);
         SetLocalZ(dynamicCutVariant.Sec, dynamicPaperEndLocalZ);
@@ -420,8 +453,8 @@ public class PaperPathMover : MonoBehaviour
         SetLocalScaleZ(dynamicCutVariant.Sec, secScaleZ);
         SetPartVisible(dynamicCutVariant.Main, mainLength > 0.0001f);
         SetPartVisible(dynamicCutVariant.Sec, secLength > 0.0001f);
-        AdjustEdgeCapScale(dynamicCutVariant.Main, mainScaleZ);
-        AdjustEdgeCapScale(dynamicCutVariant.Sec, secScaleZ);
+        ApplyDynamicPaperPolish(dynamicCutVariant.MainGeometry, mainScaleZ);
+        ApplyDynamicPaperPolish(dynamicCutVariant.SecGeometry, secScaleZ);
 
         float seamLocalZ = dynamicPaperEndLocalZ - secLength;
         dynamicCutVariant.CutForwardOffset = seamLocalZ - dynamicCutReferenceLocalZ;
@@ -430,6 +463,81 @@ public class PaperPathMover : MonoBehaviour
         dynamicCutVariant.MaxCutSize = maxCutSize;
 
         return true;
+    }
+
+    private static PaperPartGeometry CapturePaperPartGeometry(Transform partRoot)
+    {
+        if (partRoot == null)
+            return null;
+
+        PaperPartGeometry geometry = new()
+        {
+            FrontEdge = partRoot.Find("edge_front"),
+            BackEdge = partRoot.Find("edge_back"),
+            LeftEdge = partRoot.Find("edge_left"),
+            RightEdge = partRoot.Find("edge_right")
+        };
+
+        geometry.FrontPlane = FindEdgePlane(geometry.FrontEdge);
+        geometry.BackPlane = FindEdgePlane(geometry.BackEdge);
+        geometry.LeftPlane = FindEdgePlane(geometry.LeftEdge);
+        geometry.RightPlane = FindEdgePlane(geometry.RightEdge);
+
+        geometry.FrontEdgeScale = GetLocalScale(geometry.FrontEdge);
+        geometry.BackEdgeScale = GetLocalScale(geometry.BackEdge);
+        geometry.LeftEdgeScale = GetLocalScale(geometry.LeftEdge);
+        geometry.RightEdgeScale = GetLocalScale(geometry.RightEdge);
+        geometry.FrontPlaneScale = GetLocalScale(geometry.FrontPlane);
+        geometry.BackPlaneScale = GetLocalScale(geometry.BackPlane);
+        geometry.LeftPlaneScale = GetLocalScale(geometry.LeftPlane);
+        geometry.RightPlaneScale = GetLocalScale(geometry.RightPlane);
+
+        return geometry;
+    }
+
+    private static Transform FindEdgePlane(Transform edge)
+    {
+        return edge != null ? edge.Find("plane") : null;
+    }
+
+    private static Vector3 GetLocalScale(Transform target)
+    {
+        return target != null ? target.localScale : Vector3.one;
+    }
+
+    private static void RestorePaperPartGeometry(PaperPartGeometry geometry)
+    {
+        if (geometry == null)
+            return;
+
+        SetLocalScale(geometry.FrontEdge, geometry.FrontEdgeScale);
+        SetLocalScale(geometry.BackEdge, geometry.BackEdgeScale);
+        SetLocalScale(geometry.LeftEdge, geometry.LeftEdgeScale);
+        SetLocalScale(geometry.RightEdge, geometry.RightEdgeScale);
+        SetLocalScale(geometry.FrontPlane, geometry.FrontPlaneScale);
+        SetLocalScale(geometry.BackPlane, geometry.BackPlaneScale);
+        SetLocalScale(geometry.LeftPlane, geometry.LeftPlaneScale);
+        SetLocalScale(geometry.RightPlane, geometry.RightPlaneScale);
+    }
+
+    private static void SetLocalScale(Transform target, Vector3 scale)
+    {
+        if (target != null)
+            target.localScale = scale;
+    }
+
+    private void ApplyDynamicPaperPolish(PaperPartGeometry geometry, float partScaleZ)
+    {
+        if (geometry == null)
+            return;
+
+        float safePartScaleZ = Mathf.Max(Mathf.Max(0.0001f, minDynamicPartScaleZ), partScaleZ);
+        float capScaleZ = dynamicEdgeCapVisualScaleZ / safePartScaleZ;
+
+        SetLocalScaleZ(geometry.FrontEdge, capScaleZ);
+        SetLocalScaleZ(geometry.BackEdge, capScaleZ);
+        SetLocalScaleZ(geometry.LeftEdge, geometry.LeftEdgeScale.z);
+        SetLocalScaleZ(geometry.RightEdge, geometry.RightEdgeScale.z);
     }
 
     private static Transform FindPaperBody(Transform partRoot)
@@ -477,26 +585,6 @@ public class PaperPathMover : MonoBehaviour
 
         if (target.gameObject.activeSelf != visible)
             target.gameObject.SetActive(visible);
-    }
-
-    private void AdjustEdgeCapScale(Transform partRoot, float partScaleZ)
-    {
-        float safePartScaleZ = Mathf.Max(Mathf.Max(0.0001f, minDynamicPartScaleZ), partScaleZ);
-        float capScaleZ = dynamicEdgeCapVisualScaleZ / safePartScaleZ;
-
-        SetEdgeCapScale(partRoot, "edge_front", capScaleZ);
-        SetEdgeCapScale(partRoot, "edge_back", capScaleZ);
-    }
-
-    private static void SetEdgeCapScale(Transform partRoot, string edgeName, float scaleZ)
-    {
-        Transform edge = partRoot != null ? partRoot.Find(edgeName) : null;
-        if (edge == null)
-            return;
-
-        Vector3 scale = edge.localScale;
-        scale.z = scaleZ;
-        edge.localScale = scale;
     }
 
     private void TryMoveNext()
