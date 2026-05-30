@@ -11,6 +11,8 @@ public class CameraToMachinePartController : MonoBehaviour
     [Header("Animated parts")]
     [SerializeField] private Animator bladeAnimator;
     [SerializeField] private Animator holderAnimator;
+    [SerializeField] private float focusedViewReturnPositionThreshold = 0.05f;
+    [SerializeField] private float focusedViewReturnAngleThreshold = 3f;
 
     [Header("Screen")]
     [SerializeField] private float xScreen = 0.15f;
@@ -55,6 +57,7 @@ public class CameraToMachinePartController : MonoBehaviour
     private Vector3 targetPosition;
     private Quaternion targetRotation;
     private bool isMoving;
+    private bool hasFocusedAnimatedPart;
     private CameraDualModeController dualModeController;
 
     private void Start()
@@ -73,6 +76,9 @@ public class CameraToMachinePartController : MonoBehaviour
 
         if (Keyboard.current != null && Keyboard.current.kKey.wasPressedThisFrame)
             SnapToStart();
+
+        if (!isMoving)
+            ResetFocusedPartIfCameraLeftView();
 
         if (!isMoving)
             return;
@@ -208,6 +214,8 @@ public class CameraToMachinePartController : MonoBehaviour
 
         if (holderAnimator != null)
             holderAnimator.SetBool("h", false);
+
+        hasFocusedAnimatedPart = false;
     }
 
     private void FocusBlade()
@@ -217,6 +225,8 @@ public class CameraToMachinePartController : MonoBehaviour
 
         if (holderAnimator != null)
             holderAnimator.SetBool("h", false);
+
+        hasFocusedAnimatedPart = true;
     }
 
     private void FocusHolder()
@@ -226,5 +236,21 @@ public class CameraToMachinePartController : MonoBehaviour
 
         if (holderAnimator != null)
             holderAnimator.SetBool("h", true);
+
+        hasFocusedAnimatedPart = true;
+    }
+
+    private void ResetFocusedPartIfCameraLeftView()
+    {
+        if (!hasFocusedAnimatedPart)
+            return;
+
+        float positionThreshold = Mathf.Max(0f, focusedViewReturnPositionThreshold);
+        float angleThreshold = Mathf.Max(0f, focusedViewReturnAngleThreshold);
+        bool positionChanged = Vector3.Distance(transform.position, targetPosition) > positionThreshold;
+        bool rotationChanged = Quaternion.Angle(transform.rotation, targetRotation) > angleThreshold;
+
+        if (positionChanged || rotationChanged)
+            ResetPartAnimations();
     }
 }
