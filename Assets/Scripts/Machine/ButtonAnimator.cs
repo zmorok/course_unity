@@ -1,8 +1,10 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 public class ButtonAnimator : MonoBehaviour
 {
@@ -46,6 +48,7 @@ public class ButtonAnimator : MonoBehaviour
     }
 
     private static ButtonAnimator inputOwner;
+    private static readonly object UiHideConfirmationLockOwner = new();
     private const string PressParameterName = "isPressed";
     private const string MachineLoopSoundPath = "Sounds/POWER_bg";
     private const string ButtonSmallSoundPath = "Sounds/BTN_Small_sound";
@@ -73,6 +76,14 @@ public class ButtonAnimator : MonoBehaviour
     [SerializeField] private string uiRootObjectName = "Canvas";
     [SerializeField] private Key uiToggleKey = Key.U;
 
+    [Header("UI Hide Confirmation")]
+    [SerializeField] private string uiHideConfirmationObjectName = "ui_hide_confirmation";
+    [SerializeField] private string uiHideConfirmationTitle = "Скрыть интерфейс?";
+    [TextArea(2, 5)]
+    [SerializeField] private string uiHideConfirmationMessage = "Интерфейс будет скрыт, чтобы не мешать просмотру 3D-панели. Чтобы вернуть его, снова удерживайте Z и нажмите U.";
+    [SerializeField] private string uiHideConfirmButtonText = "Продолжить";
+    [SerializeField] private string uiHideCancelButtonText = "Отмена";
+
     private AudioSource audioSource;
     private AudioSource machineAudioSource;
     private AudioClip buttonSound;
@@ -86,6 +97,7 @@ public class ButtonAnimator : MonoBehaviour
     private float uiGroupAlphaBeforeHide = 1f;
     private bool uiGroupInteractableBeforeHide = true;
     private bool uiGroupBlocksRaycastsBeforeHide = true;
+    private GameObject uiHideConfirmationRoot;
 
     private void Awake()
     {
@@ -113,6 +125,7 @@ public class ButtonAnimator : MonoBehaviour
 
     private void OnDestroy()
     {
+        SimulationInputGate.Unlock(UiHideConfirmationLockOwner);
         StopAllClipAnimations();
         StopMachineAudioFade();
         StopMachineLoopAudioImmediate();
@@ -165,16 +178,43 @@ public class ButtonAnimator : MonoBehaviour
         if (uiToggleKey == Key.None || !keyboard[uiToggleKey].wasPressedThisFrame)
             return false;
 
-        ToggleUiVisibility();
-        return true;
-    }
-
-    private void ToggleUiVisibility()
-    {
         if (uiHiddenByShortcut)
             ShowUi();
         else
-            HideUi();
+            ShowUiHideConfirmation();
+
+        return true;
+    }
+
+    private void ShowUiHideConfirmation()
+    {
+        if (!ResolveUiCanvasGroup())
+            return;
+
+        EnsureUiHideConfirmation();
+        uiHideConfirmationRoot.transform.SetAsLastSibling();
+        uiHideConfirmationRoot.SetActive(true);
+        SimulationInputGate.Lock(UiHideConfirmationLockOwner);
+        ResetAllButtons();
+    }
+
+    private void HideUiHideConfirmation()
+    {
+        if (uiHideConfirmationRoot != null)
+            uiHideConfirmationRoot.SetActive(false);
+
+        SimulationInputGate.Unlock(UiHideConfirmationLockOwner);
+    }
+
+    private void ConfirmHideUi()
+    {
+        HideUiHideConfirmation();
+        HideUi();
+    }
+
+    private void CancelHideUi()
+    {
+        HideUiHideConfirmation();
     }
 
     private void HideUi()
@@ -205,6 +245,107 @@ public class ButtonAnimator : MonoBehaviour
         hasUiGroupSnapshot = false;
     }
 
+    private void EnsureUiHideConfirmation()
+    {
+        if (uiHideConfirmationRoot != null)
+            return;
+
+        RectTransform overlayRect = CreateRect(uiHideConfirmationObjectName, uiRoot.transform);
+        overlayRect.anchorMin = Vector2.zero;
+        overlayRect.anchorMax = Vector2.one;
+        overlayRect.offsetMin = Vector2.zero;
+        overlayRect.offsetMax = Vector2.zero;
+
+        Image overlayImage = overlayRect.gameObject.AddComponent<Image>();
+        overlayImage.color = new Color(0f, 0f, 0f, 0.58f);
+        overlayImage.raycastTarget = true;
+
+        RectTransform panelRect = CreateRect("panel", overlayRect);
+        panelRect.anchorMin = new Vector2(0.5f, 0.5f);
+        panelRect.anchorMax = new Vector2(0.5f, 0.5f);
+        panelRect.pivot = new Vector2(0.5f, 0.5f);
+        panelRect.anchoredPosition = Vector2.zero;
+        panelRect.sizeDelta = new Vector2(620f, 280f);
+
+        Image panelImage = panelRect.gameObject.AddComponent<Image>();
+        panelImage.color = new Color(0.09f, 0.1f, 0.12f, 0.98f);
+        panelImage.raycastTarget = true;
+
+        TextMeshProUGUI title = CreateText("title", panelRect, uiHideConfirmationTitle, 30f, FontStyles.Bold, TextAlignmentOptions.Center);
+        title.rectTransform.anchorMin = new Vector2(0f, 1f);
+        title.rectTransform.anchorMax = new Vector2(1f, 1f);
+        title.rectTransform.pivot = new Vector2(0.5f, 1f);
+        title.rectTransform.offsetMin = new Vector2(32f, -74f);
+        title.rectTransform.offsetMax = new Vector2(-32f, -24f);
+
+        TextMeshProUGUI message = CreateText("message", panelRect, uiHideConfirmationMessage, 20f, FontStyles.Normal, TextAlignmentOptions.Center);
+        message.rectTransform.anchorMin = new Vector2(0f, 0f);
+        message.rectTransform.anchorMax = new Vector2(1f, 1f);
+        message.rectTransform.offsetMin = new Vector2(42f, 92f);
+        message.rectTransform.offsetMax = new Vector2(-42f, -86f);
+
+        Button confirmButton = CreateButton("confirm_button", panelRect, uiHideConfirmButtonText, new Vector2(-108f, 34f), new Color(0.88f, 0.92f, 1f, 1f), new Color(0.08f, 0.1f, 0.16f, 1f));
+        confirmButton.onClick.AddListener(ConfirmHideUi);
+
+        Button cancelButton = CreateButton("cancel_button", panelRect, uiHideCancelButtonText, new Vector2(108f, 34f), new Color(0.22f, 0.24f, 0.28f, 1f), Color.white);
+        cancelButton.onClick.AddListener(CancelHideUi);
+
+        uiHideConfirmationRoot = overlayRect.gameObject;
+        uiHideConfirmationRoot.SetActive(false);
+    }
+
+    private static RectTransform CreateRect(string objectName, Transform parent)
+    {
+        GameObject obj = new(objectName, typeof(RectTransform));
+        RectTransform rect = obj.GetComponent<RectTransform>();
+        rect.SetParent(parent, false);
+        return rect;
+    }
+
+    private static TextMeshProUGUI CreateText(string objectName, Transform parent, string value, float fontSize, FontStyles fontStyle, TextAlignmentOptions alignment)
+    {
+        TextMeshProUGUI text = CreateRect(objectName, parent).gameObject.AddComponent<TextMeshProUGUI>();
+        text.text = value;
+        text.fontSize = fontSize;
+        text.fontStyle = fontStyle;
+        text.alignment = alignment;
+        text.color = Color.white;
+        text.textWrappingMode = TextWrappingModes.Normal;
+        text.raycastTarget = false;
+        return text;
+    }
+
+    private static Button CreateButton(string objectName, Transform parent, string label, Vector2 anchoredPosition, Color backgroundColor, Color textColor)
+    {
+        RectTransform buttonRect = CreateRect(objectName, parent);
+        buttonRect.anchorMin = new Vector2(0.5f, 0f);
+        buttonRect.anchorMax = new Vector2(0.5f, 0f);
+        buttonRect.pivot = new Vector2(0.5f, 0f);
+        buttonRect.anchoredPosition = anchoredPosition;
+        buttonRect.sizeDelta = new Vector2(180f, 46f);
+
+        Image buttonImage = buttonRect.gameObject.AddComponent<Image>();
+        buttonImage.color = backgroundColor;
+
+        Button button = buttonRect.gameObject.AddComponent<Button>();
+        ColorBlock colors = button.colors;
+        colors.normalColor = backgroundColor;
+        colors.highlightedColor = Color.Lerp(backgroundColor, Color.white, 0.12f);
+        colors.pressedColor = Color.Lerp(backgroundColor, Color.black, 0.12f);
+        colors.selectedColor = colors.highlightedColor;
+        colors.disabledColor = Color.Lerp(backgroundColor, Color.gray, 0.45f);
+        button.colors = colors;
+
+        TextMeshProUGUI buttonText = CreateText("label", buttonRect, label, 19f, FontStyles.Bold, TextAlignmentOptions.Center);
+        buttonText.color = textColor;
+        buttonText.rectTransform.anchorMin = Vector2.zero;
+        buttonText.rectTransform.anchorMax = Vector2.one;
+        buttonText.rectTransform.offsetMin = Vector2.zero;
+        buttonText.rectTransform.offsetMax = Vector2.zero;
+
+        return button;
+    }
+
     private bool ResolveUiCanvasGroup()
     {
         if (uiRoot == null)
@@ -214,7 +355,7 @@ public class ButtonAnimator : MonoBehaviour
 
             if (uiRoot == null)
             {
-                Canvas canvas = UnityEngine.Object.FindFirstObjectByType<Canvas>();
+                Canvas canvas = UnityEngine.Object.FindAnyObjectByType<Canvas>();
                 uiRoot = canvas != null ? canvas.gameObject : null;
             }
         }
