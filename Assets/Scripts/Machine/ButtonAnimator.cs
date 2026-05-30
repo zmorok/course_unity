@@ -10,6 +10,7 @@ public class ButtonAnimator : MonoBehaviour
 {
     public static event Action<ControlPanelButton> ButtonPressed;
     public static event Action<bool> MachinePowerChanged;
+    public static event Action EmergencyStopPressed;
 
     public static bool IsMachinePowered { get; private set; }
 
@@ -544,6 +545,7 @@ public class ButtonAnimator : MonoBehaviour
 
         if (button == ControlPanelButton.EmergencyStop)
         {
+            EmergencyStopPressed?.Invoke();
             SetMachinePowered(false, notifyListeners: true);
         }
     }

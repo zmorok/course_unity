@@ -46,6 +46,10 @@ public class PracticeTasksPopupController : MonoBehaviour
     [Header("Paper Targets")]
     [SerializeField] private int task2TargetPaperPointIndex = 3;
 
+    [Header("Emergency Exit")]
+    [SerializeField] private string emergencyResetMessage = "Аварийный сброс выполнен. Текущее задание остановлено. Удалите бумагу сочетанием R+U.";
+    [SerializeField] private string emergencyExitMessage = "Практика закончилась аварийным выходом";
+
     private Button practiceButton;
     private RectTransform practiceRect;
     private RectTransform dropdownRect;
@@ -60,6 +64,7 @@ public class PracticeTasksPopupController : MonoBehaviour
     private bool cutObservedDuringActiveTask;
     private bool runtimeSubscribed;
     private bool isPracticeModeActive;
+    private bool isEmergencyExitPending;
     private bool hasPracticeLayoutSnapshot;
     private RectTransform buttonContainerRect;
     private RectTransform controlPanelRect;
@@ -135,6 +140,7 @@ public class PracticeTasksPopupController : MonoBehaviour
             activeTaskIndex = 0;
             commandSequenceProgress = 0;
             cutObservedDuringActiveTask = false;
+            isEmergencyExitPending = false;
         }
         else
         {
@@ -208,8 +214,60 @@ public class PracticeTasksPopupController : MonoBehaviour
             return;
         }
 
-        if (keyboard.uKey.wasPressedThisFrame)
-            ResetPaperCycleWithoutMachineRestart();
+        if (!keyboard.uKey.wasPressedThisFrame)
+            return;
+
+        if (isEmergencyExitPending)
+        {
+            CompleteEmergencyExitAfterPaperRemoval();
+            return;
+        }
+
+        ResetPaperCycleWithoutMachineRestart();
+    }
+
+    private void HandleEmergencyStopPressed()
+    {
+        if (!Application.isPlaying || isEmergencyExitPending)
+            return;
+
+        if (!IsPracticeFlowActive())
+            return;
+
+        ResolveSceneControllers();
+
+        if (cutter != null)
+            cutter.ResetCutState();
+
+        ClearActiveTaskProgress();
+        isEmergencyExitPending = true;
+
+        ResolveInfoPanel();
+        infoPanel?.ShowInfo(emergencyResetMessage);
+        UpdateButtonStates();
+    }
+
+    private void CompleteEmergencyExitAfterPaperRemoval()
+    {
+        ResolveSceneControllers();
+
+        if (paperMover != null)
+            paperMover.ResetPaperToStart();
+        else if (cutter != null)
+            cutter.ResetCutState();
+
+        isEmergencyExitPending = false;
+        isPracticeModeActive = false;
+        ClearActiveTaskProgress();
+        highestUnlockedTask = 1;
+
+        RestorePracticeModeVisibility();
+        RestorePracticeLayout();
+        HideWindow();
+        UpdateButtonStates();
+
+        ResolveInfoPanel();
+        infoPanel?.ShowInfo(emergencyExitMessage);
     }
 
     private void SubscribeRuntimeEvents()
@@ -218,6 +276,7 @@ public class PracticeTasksPopupController : MonoBehaviour
             return;
 
         // практика слушает станок через события, чтобы задания завершались от реальных действий пользователя
+        ButtonAnimator.EmergencyStopPressed += HandleEmergencyStopPressed;
         ButtonAnimator.ButtonPressed += HandlePanelButtonPressed;
         ButtonAnimator.MachinePowerChanged += HandleMachinePowerChanged;
         CutAnimator.CuttingStateChanged += HandleCuttingStateChanged;
@@ -229,6 +288,7 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (!runtimeSubscribed)
             return;
 
+        ButtonAnimator.EmergencyStopPressed -= HandleEmergencyStopPressed;
         ButtonAnimator.ButtonPressed -= HandlePanelButtonPressed;
         ButtonAnimator.MachinePowerChanged -= HandleMachinePowerChanged;
         CutAnimator.CuttingStateChanged -= HandleCuttingStateChanged;
@@ -263,6 +323,13 @@ public class PracticeTasksPopupController : MonoBehaviour
 
     public void ToggleWindow()
     {
+        if (isEmergencyExitPending)
+        {
+            ResolveInfoPanel();
+            infoPanel?.ShowInfo(emergencyResetMessage);
+            return;
+        }
+
         if (isPracticeModeActive)
         {
             ExitPracticeMode();
@@ -312,6 +379,7 @@ public class PracticeTasksPopupController : MonoBehaviour
 
     private void ExitPracticeMode()
     {
+        isEmergencyExitPending = false;
         isPracticeModeActive = false;
 
         ResetPracticeToInitialState();
@@ -508,6 +576,7 @@ public class PracticeTasksPopupController : MonoBehaviour
     private void ClearPracticeModeState()
     {
         isPracticeModeActive = false;
+        isEmergencyExitPending = false;
         hasPracticeLayoutSnapshot = false;
         practiceModeActiveStates.Clear();
     }
@@ -893,7 +962,7 @@ public class PracticeTasksPopupController : MonoBehaviour
             bool isActiveTask = taskIndex == activeTaskIndex;
 
             if (button != null)
-                button.interactable = isAvailableTask;
+                button.interactable = isAvailableTask && !isEmergencyExitPending;
 
             if (label == null)
                 continue;
@@ -902,7 +971,7 @@ public class PracticeTasksPopupController : MonoBehaviour
                 label.color = activeTextColor;
             else if (isCompletedTask)
                 label.color = completedTextColor;
-            else if (isAvailableTask)
+            else if (isAvailableTask && !isEmergencyExitPending)
                 label.color = enabledTextColor;
             else
                 label.color = lockedTextColor;
@@ -957,6 +1026,9 @@ public class PracticeTasksPopupController : MonoBehaviour
 
     private void HandleTaskClicked(int taskIndex)
     {
+        if (isEmergencyExitPending)
+            return;
+
         if (taskIndex < 1 || taskIndex > TaskLabels.Length)
             return;
 
@@ -1018,6 +1090,9 @@ public class PracticeTasksPopupController : MonoBehaviour
 
     private void HandleCutCommandAcceptedFromPanel(float cutSize)
     {
+        if (isEmergencyExitPending)
+            return;
+
         if (activeTaskIndex != 4)
             return;
 
@@ -1065,6 +1140,9 @@ public class PracticeTasksPopupController : MonoBehaviour
 
     private void HandleMachinePowerChanged(bool isPowered)
     {
+        if (isEmergencyExitPending)
+            return;
+
         if (!Application.isPlaying || activeTaskIndex <= 0)
             return;
 
@@ -1073,6 +1151,9 @@ public class PracticeTasksPopupController : MonoBehaviour
 
     private void HandleCuttingStateChanged(bool isCutting)
     {
+        if (isEmergencyExitPending)
+            return;
+
         if (!Application.isPlaying || activeTaskIndex != 5)
             return;
 
@@ -1084,6 +1165,9 @@ public class PracticeTasksPopupController : MonoBehaviour
 
     private void TryCompleteActiveTaskFromState()
     {
+        if (isEmergencyExitPending)
+            return;
+
         if (activeTaskIndex <= 0)
             return;
 
@@ -1114,6 +1198,7 @@ public class PracticeTasksPopupController : MonoBehaviour
     private bool IsPracticeFlowActive()
     {
         return isPracticeModeActive ||
+               isEmergencyExitPending ||
                activeTaskIndex > 0 ||
                (highestUnlockedTask > 1 && highestUnlockedTask <= TaskLabels.Length);
     }
@@ -1122,6 +1207,9 @@ public class PracticeTasksPopupController : MonoBehaviour
     {
         if (!IsPracticeFlowActive())
             return true;
+
+        if (isEmergencyExitPending)
+            return false;
 
         // во время практики разрешаются только кнопки, которые нужны для текущего шага обучения
         if (button == ControlPanelButton.EmergencyStop)
@@ -1145,6 +1233,9 @@ public class PracticeTasksPopupController : MonoBehaviour
         if (!IsPracticeFlowActive())
             return true;
 
+        if (isEmergencyExitPending)
+            return false;
+
         // движение бумаги ограничивается текущим заданием, иначе пользователь сможет перескочить нужный этап
         if (activeTaskIndex <= 0 || paperMover == null)
             return false;
@@ -1163,6 +1254,9 @@ public class PracticeTasksPopupController : MonoBehaviour
     {
         if (!IsPracticeFlowActive())
             return true;
+
+        if (isEmergencyExitPending)
+            return false;
 
         // рез разрешён только на отдельном шаге, чтобы задания после ввода команды не завершались случайно
         if (activeTaskIndex <= 0)
@@ -1195,6 +1289,7 @@ public class PracticeTasksPopupController : MonoBehaviour
     public void ResetPracticeToInitialState()
     {
         // полный сброс возвращает практику, бумагу, нож и питание к старту учебного сценария
+        isEmergencyExitPending = false;
         ClearActiveTaskProgress();
         highestUnlockedTask = 1;
 
@@ -1222,6 +1317,7 @@ public class PracticeTasksPopupController : MonoBehaviour
     private void ResetPaperCycleWithoutMachineRestart()
     {
         // частичный сброс нужен для отладки маршрута бумаги без выключения станка и выхода из режима практики
+        isEmergencyExitPending = false;
         bool shouldKeepPracticeFlow = IsPracticeFlowActive();
 
         ClearActiveTaskProgress();
